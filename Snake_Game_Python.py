@@ -128,7 +128,7 @@ import pygame
 # ---------------------------------------------------------------------------
 # Version / update check
 # ---------------------------------------------------------------------------
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 GITHUB_REPO = "SpaceSquare640/Snake_Game_Python"
 
 
@@ -199,17 +199,27 @@ SAVE_PATH = _app_dir() / "snake_save.json"
 ICON_PATH = resource_path("assets/icon.png")
 
 # Colors -------------------------------------------------------------------
-BLACK = (15, 15, 20)
-DARK = (26, 26, 34)
-PANEL = (32, 32, 42)
-HOVER = (48, 48, 62)
+# Palette follows a 60-30-10 split: BLACK base (~60%), PANEL button fills
+# (~30%), and ACCENT for borders/highlights/text accents (~10%).
+BLACK = (15, 15, 20)           # 60% — background base
+DARK = (24, 24, 32)            # play-field / input wells
+PANEL = (30, 31, 40)           # 30% — default button fill
+PANEL_HOVER = (44, 46, 58)     # button fill on hover
 GRID_LINE = (34, 34, 44)
-WHITE = (235, 235, 240)
+BORDER = (58, 60, 74)          # subtle default button border
+WHITE = (236, 236, 241)
 GREY = (140, 140, 150)
+DIM = (86, 88, 100)            # low-contrast text (credits / hints)
+DIVIDER = (54, 56, 70)
 RED = (220, 70, 70)
 GOLD = (240, 200, 90)
 FOOD_COLOR = (235, 80, 90)
-ACCENT = (90, 200, 160)
+# Slightly desaturated, softer green — easier on the eyes over long sessions.
+ACCENT = (118, 196, 162)       # 10% — accent / hover border / highlights
+ACCENT_DEEP = (70, 150, 120)   # darker accent for glows and pressed states
+
+# Default corner radius for GUI buttons (rounder = more modern).
+BTN_RADIUS = 12
 
 # Nine selectable snake colors.
 SNAKE_COLORS = [
@@ -718,6 +728,7 @@ class SnakeGame:
                "simsun,notosanscjktc,notosanscjksc,arialunicodems")
         try:
             return {
+                "title": pygame.font.SysFont(cjk, 66, bold=True),
                 "big": pygame.font.SysFont(cjk, 60),
                 "mid": pygame.font.SysFont(cjk, 32),
                 "small": pygame.font.SysFont(cjk, 22),
@@ -725,6 +736,7 @@ class SnakeGame:
             }
         except Exception:  # pragma: no cover - defensive
             return {
+                "title": pygame.font.Font(None, 66),
                 "big": pygame.font.Font(None, 60),
                 "mid": pygame.font.Font(None, 32),
                 "small": pygame.font.Font(None, 22),
@@ -1198,32 +1210,48 @@ class SnakeGame:
         return rect
 
     # -- Reusable button widgets -------------------------------------------
+    def _glow(self, rect, color, radius):
+        """Soft outer glow behind a rounded rect, used for hover feedback."""
+        pad = 14
+        glow = pygame.Surface((rect.w + pad * 2, rect.h + pad * 2), pygame.SRCALPHA)
+        cx, cy = glow.get_width() // 2, glow.get_height() // 2
+        for grow, alpha in ((12, 16), (8, 30), (4, 50)):
+            r = pygame.Rect(0, 0, rect.w + grow * 2, rect.h + grow * 2)
+            r.center = (cx, cy)
+            pygame.draw.rect(glow, (*color, alpha), r, border_radius=radius + grow)
+        self.screen.blit(glow, (rect.x - pad, rect.y - pad))
+
     def _button(self, rect, label, action, arg=None, font="small",
-                selected=False, swatch=None):
+                selected=False, swatch=None, radius=BTN_RADIUS):
         hover = rect.collidepoint(pygame.mouse.get_pos())
-        if selected:
-            base = ACCENT
-        elif hover:
-            base = HOVER
-        else:
-            base = PANEL
-        pygame.draw.rect(self.screen, base, rect, border_radius=10)
-        pygame.draw.rect(self.screen, (70, 70, 86), rect, 2, border_radius=10)
+        if hover and not selected:
+            self._glow(rect, ACCENT, radius)
+        fill = ACCENT if selected else (PANEL_HOVER if hover else PANEL)
+        border = ACCENT if (hover or selected) else BORDER
+        pygame.draw.rect(self.screen, fill, rect, border_radius=radius)
+        pygame.draw.rect(self.screen, border, rect, 2 if (hover or selected) else 1,
+                         border_radius=radius)
         txt_color = BLACK if selected else WHITE
         cx = rect.centerx
         if swatch is not None:
-            sw = pygame.Rect(rect.x + 14, rect.centery - 9, 18, 18)
-            pygame.draw.rect(self.screen, swatch, sw, border_radius=4)
-            cx += 14
+            sw = pygame.Rect(rect.x + 16, rect.centery - 10, 20, 20)
+            pygame.draw.rect(self.screen, swatch, sw, border_radius=6)
+            pygame.draw.rect(self.screen, BORDER, sw, 1, border_radius=6)
+            cx += 16
         self._text(label, font, txt_color, center=(cx, rect.centery))
         self.buttons.append({"rect": rect, "action": action, "arg": arg})
 
     def _mode_button(self, rect, mode):
         key = MODE_KEYS[mode]
         hover = rect.collidepoint(pygame.mouse.get_pos())
-        pygame.draw.rect(self.screen, HOVER if hover else PANEL, rect, border_radius=10)
-        pygame.draw.rect(self.screen, (70, 70, 86), rect, 2, border_radius=10)
-        self._text(self.t(key), "small", WHITE, center=(rect.centerx, rect.centery - 9))
+        if hover:
+            self._glow(rect, ACCENT, BTN_RADIUS)
+        pygame.draw.rect(self.screen, PANEL_HOVER if hover else PANEL, rect,
+                         border_radius=BTN_RADIUS)
+        pygame.draw.rect(self.screen, ACCENT if hover else BORDER, rect,
+                         2 if hover else 1, border_radius=BTN_RADIUS)
+        self._text(self.t(key), "small", WHITE,
+                   center=(rect.centerx, rect.centery - 9))
         best = self.profile.highscores.get(key, 0)
         self._text(f"{self.t('high')}: {best}", "tiny", GREY,
                    center=(rect.centerx, rect.centery + 13))
@@ -1231,46 +1259,81 @@ class SnakeGame:
 
     # -- Menus --------------------------------------------------------------
     def _draw_menu(self):
-        self._text(self.t("title"), "big", ACCENT, center=(WIDTH // 2, 62))
-        self._text(self.t("credits"), "tiny", (110, 110, 122), center=(WIDTH // 2, 100))
-        self._text(self._version_line(), "tiny",
-                   GOLD if self.update_state == "outdated" else GREY,
-                   center=(WIDTH // 2, 124))
+        # Bold title; credits dimmed to keep focus on the buttons below.
+        self._text(self.t("title"), "title", ACCENT, center=(WIDTH // 2, 104))
+        self._text(self.t("credits"), "tiny", DIM, center=(WIDTH // 2, 144))
 
-        # Mode grid (2 columns x 3 rows).
-        bw, bh, gap = 290, 60, 16
+        # Small version / update status pinned to the top-right corner.
+        self._draw_status_corner()
+
+        # Mode grid (2 cols x 3 rows) + an All-AI / Settings row, vertically
+        # centered in the band between the credits and the bottom card.
+        bw, bh, gap = 290, 64, 20
+        srow_h = 56
+        block_h = 3 * bh + 2 * gap + 22 + srow_h
+        band_top, band_bottom = 176, HEIGHT - 120
         start_x = (WIDTH - (2 * bw + gap)) // 2
-        start_y = 156
+        start_y = band_top + max(0, (band_bottom - band_top - block_h) // 2)
         for i, mode in enumerate(MAIN_MENU_MODES):
             col, row = i % 2, i // 2
             rect = pygame.Rect(start_x + col * (bw + gap),
                                start_y + row * (bh + gap), bw, bh)
             self._mode_button(rect, mode)
 
-        # All-AI + Settings row.
-        row_y = start_y + 3 * (bh + gap) + 6
-        self._button(pygame.Rect(start_x, row_y, bw, 52),
+        row_y = start_y + 3 * (bh + gap) + 22
+        self._button(pygame.Rect(start_x, row_y, bw, srow_h),
                      self.t("ai_modes"), "open_ai_menu")
-        self._button(pygame.Rect(start_x + bw + gap, row_y, bw, 52),
+        self._button(pygame.Rect(start_x + bw + gap, row_y, bw, srow_h),
                      self.t("settings"), "open_settings")
 
-        # Profile strip + color swatch.
-        prof = self.profile
-        info = (f"{prof.name}   {self.t('level_label')} {prof.level}   "
-                f"{self.t('xp')} {prof.xp}/{Profile.xp_for_level(prof.level)}")
-        self._text(info, "small", ACCENT, center=(WIDTH // 2, HEIGHT - 64))
-        swatch = pygame.Rect(WIDTH // 2 - 150, HEIGHT - 73, 18, 18)
-        pygame.draw.rect(self.screen, SNAKE_COLORS[prof.color_index], swatch, border_radius=4)
-        self._text(self.t("menu_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 32))
+        # Profile card (name | level | xp) pinned near the bottom.
+        self._draw_profile_card(HEIGHT - 98)
+        self._text(self.t("menu_hint"), "tiny", DIM, center=(WIDTH // 2, HEIGHT - 32))
 
-    def _version_line(self):
-        if self.update_state == "checking":
-            return self.t("ver_checking", ver=APP_VERSION)
-        if self.update_state == "latest":
-            return self.t("ver_latest", ver=APP_VERSION)
-        if self.update_state == "outdated":
-            return self.t("ver_outdated", ver=APP_VERSION, latest=self.latest_version)
-        return self.t("ver_unknown", ver=APP_VERSION)
+    def _draw_status_corner(self):
+        """Compact version + colored status dot in the top-right corner."""
+        dot_colors = {"checking": GREY, "latest": ACCENT, "outdated": GOLD,
+                      "unknown": DIM}
+        dot = dot_colors.get(self.update_state, DIM)
+        if self.update_state == "outdated" and self.latest_version:
+            label = f"v{APP_VERSION} → {self.latest_version}"
+            text_color = GOLD
+        else:
+            label = f"v{APP_VERSION}"
+            text_color = GREY
+        surf = self.fonts["tiny"].render(label, True, text_color)
+        rect = surf.get_rect()
+        rect.topright = (WIDTH - 16, 14)
+        self.screen.blit(surf, rect)
+        pygame.draw.circle(self.screen, dot, (rect.left - 11, rect.centery + 1), 4)
+
+    def _draw_profile_card(self, top):
+        """A small card grouping name | level | XP with thin dividers."""
+        prof = self.profile
+        card_w, card_h = 478, 52
+        card = pygame.Rect((WIDTH - card_w) // 2, top, card_w, card_h)
+        pygame.draw.rect(self.screen, PANEL, card, border_radius=BTN_RADIUS)
+        pygame.draw.rect(self.screen, BORDER, card, 1, border_radius=BTN_RADIUS)
+
+        # Unequal segments: the name needs the most room.
+        d1 = card.x + 214          # name | level divider
+        d2 = card.x + 332          # level | xp divider
+        for x in (d1, d2):
+            pygame.draw.line(self.screen, DIVIDER, (x, card.y + 11), (x, card.bottom - 11))
+
+        # Segment 1: color swatch + name.
+        sw = pygame.Rect(card.x + 18, card.centery - 10, 20, 20)
+        pygame.draw.rect(self.screen, SNAKE_COLORS[prof.color_index], sw, border_radius=6)
+        pygame.draw.rect(self.screen, BORDER, sw, 1, border_radius=6)
+        self._text(prof.name, "small", WHITE, topleft=(sw.right + 12, card.centery - 13))
+
+        # Segment 2: level (accent).
+        self._text(f"{self.t('level_label')} {prof.level}", "small", ACCENT,
+                   center=((d1 + d2) // 2, card.centery))
+
+        # Segment 3: XP progress.
+        self._text(f"{self.t('xp')} {prof.xp}/{Profile.xp_for_level(prof.level)}",
+                   "small", GREY, center=((d2 + card.right) // 2, card.centery))
 
     def _draw_settings(self):
         self._text(self.t("settings_title"), "big", ACCENT, center=(WIDTH // 2, 90))
@@ -1312,9 +1375,13 @@ class SnakeGame:
             cx = start_x + (i % cols) * (size + gap)
             cy = start_y + (i // cols) * (size + gap)
             rect = pygame.Rect(cx, cy, size, size)
-            pygame.draw.rect(self.screen, color, rect, border_radius=10)
-            if i == self.profile.color_index:
-                pygame.draw.rect(self.screen, WHITE, rect.inflate(10, 10), 3, border_radius=12)
+            hover = rect.collidepoint(pygame.mouse.get_pos())
+            selected = i == self.profile.color_index
+            if hover or selected:
+                self._glow(rect, ACCENT, 12)
+            pygame.draw.rect(self.screen, color, rect, border_radius=12)
+            if selected:
+                pygame.draw.rect(self.screen, ACCENT, rect.inflate(10, 10), 3, border_radius=14)
             self._text(str(i + 1), "small", BLACK, center=rect.center)
             self.buttons.append({"rect": rect, "action": "set_color", "arg": i})
         self._button(pygame.Rect(WIDTH // 2 - 90, HEIGHT - 90, 180, 50),
@@ -1441,12 +1508,16 @@ class SnakeGame:
             rect = pygame.Rect(0, 0, b, b)
             rect.center = (bx, by)
             hover = rect.collidepoint(pygame.mouse.get_pos())
-            pygame.draw.rect(self.screen, HOVER if hover else PANEL, rect, border_radius=8)
-            pygame.draw.rect(self.screen, (70, 70, 86), rect, 2, border_radius=8)
-            self._draw_arrow(rect, direction)
+            if hover:
+                self._glow(rect, ACCENT, 10)
+            pygame.draw.rect(self.screen, PANEL_HOVER if hover else PANEL, rect,
+                             border_radius=10)
+            pygame.draw.rect(self.screen, ACCENT if hover else BORDER, rect,
+                             2 if hover else 1, border_radius=10)
+            self._draw_arrow(rect, direction, ACCENT if hover else WHITE)
             self.buttons.append({"rect": rect, "action": "dir", "arg": direction})
 
-    def _draw_arrow(self, rect, direction):
+    def _draw_arrow(self, rect, direction, color=WHITE):
         cx, cy = rect.center
         s = 9
         if direction == UP:
@@ -1457,7 +1528,7 @@ class SnakeGame:
             pts = [(cx - s, cy), (cx + s, cy - s), (cx + s, cy + s)]
         else:  # RIGHT
             pts = [(cx + s, cy), (cx - s, cy - s), (cx - s, cy + s)]
-        pygame.draw.polygon(self.screen, WHITE, pts)
+        pygame.draw.polygon(self.screen, color, pts)
 
     # -- Overlays -----------------------------------------------------------
     def _draw_center_banner(self, text):

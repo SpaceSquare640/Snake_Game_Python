@@ -10,6 +10,19 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## English
 
+### [1.1.1] — 2026-06-10
+
+#### Changed (UI polish)
+- **Button hover feedback** — buttons now show a soft outer glow and an
+  accent-colored border on hover (instead of a flat grey outline).
+- **Bolder title** and **lower-contrast credits** so focus lands on the menu.
+- **Rounder corners** on all buttons and cards for a more modern look.
+- **Profile card** — name, level, and XP are grouped into a single card with
+  thin dividers, balancing the information density.
+- **Corner status** — the version/update indicator (with a colored status dot)
+  moved to the top-right corner so it never blocks the view.
+- Slightly **desaturated accent green** for more comfortable long sessions.
+
 ### [1.1.0] — 2026-06-10
 
 #### Added
@@ -67,6 +80,16 @@ First public release.
 
 ## 繁體中文
 
+### [1.1.1] — 2026-06-10
+
+#### 變更（介面優化）
+- **按鈕懸停回饋** — 滑鼠懸停時按鈕會出現柔和的外發光與主色邊框（取代原本的灰色外框）。
+- **標題加粗**、**創作者資訊降低對比**，讓焦點集中在選單按鈕。
+- 所有按鈕與卡片採用**更大的圓角**，看起來更現代圓潤。
+- **玩家資訊卡片** — 將名稱、等級、經驗值整合為一張附細分隔線的卡片，使資訊密度更平衡。
+- **角落狀態** — 版本／更新指示（含彩色狀態點）移至右上角，不再遮擋畫面。
+- **主色綠稍微降低飽和度**，長時間遊玩更舒適。
+
 ### [1.1.0] — 2026-06-10
 
 #### 新增
@@ -114,6 +137,16 @@ First public release.
 
 ## 简体中文
 
+### [1.1.1] — 2026-06-10
+
+#### 变更（界面优化）
+- **按钮悬停反馈** — 鼠标悬停时按钮会出现柔和的外发光与主色边框（取代原本的灰色外框）。
+- **标题加粗**、**创作者信息降低对比**，让焦点集中在菜单按钮。
+- 所有按钮与卡片采用**更大的圆角**，看起来更现代圆润。
+- **玩家信息卡片** — 将名称、等级、经验值整合为一张附细分隔线的卡片，使信息密度更平衡。
+- **角落状态** — 版本／更新指示（含彩色状态点）移至右上角，不再遮挡画面。
+- **主色绿稍微降低饱和度**，长时间游玩更舒适。
+
 ### [1.1.0] — 2026-06-10
 
 #### 新增
@@ -157,5 +190,6 @@ First public release.
 - **自定义许可协议**，附带署名要求（创作者：SpaceSquare、Claude Code；拥有者：
   SpaceSquare），并提供三种语言版本。
 
+[1.1.1]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.1.1
 [1.1.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.1.0
 [1.0.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.0.0

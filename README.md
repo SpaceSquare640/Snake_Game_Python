@@ -6,7 +6,7 @@ profiles, and an auto-setup bootstrap that installs everything it needs.
 
 **Languages:** [English](#english) · [繁體中文](#繁體中文) · [简体中文](#简体中文)
 
-> **Version 1.1.0** — see the full [CHANGELOG](CHANGELOG.md) · new here? read the [Guidebook](Guidebook.md).
+> **Version 1.1.1** — see the full [CHANGELOG](CHANGELOG.md) · new here? read the [Guidebook](Guidebook.md).
 
 ---
 
