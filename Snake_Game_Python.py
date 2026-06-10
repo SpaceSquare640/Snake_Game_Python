@@ -8,8 +8,11 @@ Features
   - Main: Classic, Survival, Battle, Level, AI vs Human, Player Fill.
   - All-AI menu: AI vs AI, AI Fill.
 * On-launch update check against the project's GitHub Releases.
-* Full on-screen GUI: clickable menus, a Settings menu, an All-AI menu, and a
-  four-button D-pad for up/down/left/right.
+* Full on-screen GUI: clickable menus with shortcut badges, a Settings menu, an
+  All-AI menu, a Leaderboard, and a four-button D-pad for up/down/left/right.
+* Four visual themes (Dark, Neon, Retro CRT, Minimal).
+* Procedural sound effects and a background-music toggle (no audio files).
+* Per-mode leaderboard (top 5) and remappable movement keys.
 * Three languages: English (default), Traditional Chinese, Simplified Chinese.
 * Player profiles with a persistent, XP-based level.
 * Nine selectable snake colors.
@@ -128,7 +131,7 @@ import pygame
 # ---------------------------------------------------------------------------
 # Version / update check
 # ---------------------------------------------------------------------------
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.2.0"
 GITHUB_REPO = "SpaceSquare640/Snake_Game_Python"
 
 
@@ -198,25 +201,65 @@ def resource_path(rel: str) -> Path:
 SAVE_PATH = _app_dir() / "snake_save.json"
 ICON_PATH = resource_path("assets/icon.png")
 
-# Colors -------------------------------------------------------------------
-# Palette follows a 60-30-10 split: BLACK base (~60%), PANEL button fills
-# (~30%), and ACCENT for borders/highlights/text accents (~10%).
-BLACK = (15, 15, 20)           # 60% — background base
-DARK = (24, 24, 32)            # play-field / input wells
-PANEL = (30, 31, 40)           # 30% — default button fill
-PANEL_HOVER = (44, 46, 58)     # button fill on hover
-GRID_LINE = (34, 34, 44)
-BORDER = (58, 60, 74)          # subtle default button border
-WHITE = (236, 236, 241)
-GREY = (140, 140, 150)
-DIM = (86, 88, 100)            # low-contrast text (credits / hints)
-DIVIDER = (54, 56, 70)
-RED = (220, 70, 70)
-GOLD = (240, 200, 90)
-FOOD_COLOR = (235, 80, 90)
-# Slightly desaturated, softer green — easier on the eyes over long sessions.
-ACCENT = (118, 196, 162)       # 10% — accent / hover border / highlights
-ACCENT_DEEP = (70, 150, 120)   # darker accent for glows and pressed states
+# Themes -------------------------------------------------------------------
+# Each theme is a full color set. The named module globals below (BLACK,
+# PANEL, ACCENT, ...) are the *current* theme and are reassigned by
+# apply_theme(); all drawing code reads those names, so a theme switch
+# recolors the whole UI with no other changes. Palette follows a 60-30-10
+# split: base background (~60%), panel fills (~30%), accent (~10%).
+THEMES = {
+    "dark": {
+        "black": (15, 15, 20), "dark": (24, 24, 32), "panel": (30, 31, 40),
+        "panel_hover": (44, 46, 58), "grid": (34, 34, 44), "border": (58, 60, 74),
+        "white": (236, 236, 241), "grey": (140, 140, 150), "dim": (78, 80, 92),
+        "divider": (54, 56, 70), "red": (220, 70, 70), "gold": (240, 200, 90),
+        "food": (235, 80, 90), "accent": (118, 196, 162),
+        "accent_deep": (70, 150, 120), "obstacle": (70, 70, 86),
+    },
+    "neon": {
+        "black": (8, 8, 16), "dark": (16, 16, 30), "panel": (24, 22, 44),
+        "panel_hover": (44, 40, 78), "grid": (30, 30, 54), "border": (78, 66, 132),
+        "white": (235, 240, 255), "grey": (150, 150, 185), "dim": (92, 90, 134),
+        "divider": (60, 55, 104), "red": (255, 80, 120), "gold": (255, 220, 120),
+        "food": (255, 90, 150), "accent": (90, 230, 235),
+        "accent_deep": (60, 170, 180), "obstacle": (84, 72, 148),
+    },
+    "retro": {
+        "black": (6, 14, 8), "dark": (9, 22, 12), "panel": (13, 30, 17),
+        "panel_hover": (22, 48, 28), "grid": (16, 38, 21), "border": (44, 96, 54),
+        "white": (180, 255, 190), "grey": (110, 175, 122), "dim": (74, 124, 84),
+        "divider": (32, 72, 42), "red": (255, 120, 90), "gold": (210, 255, 120),
+        "food": (160, 255, 140), "accent": (120, 255, 150),
+        "accent_deep": (70, 185, 100), "obstacle": (44, 96, 54),
+    },
+    "minimal": {
+        "black": (18, 18, 20), "dark": (26, 26, 28), "panel": (34, 34, 38),
+        "panel_hover": (50, 50, 56), "grid": (40, 40, 44), "border": (72, 72, 80),
+        "white": (230, 230, 234), "grey": (150, 150, 158), "dim": (104, 104, 112),
+        "divider": (56, 56, 64), "red": (200, 96, 96), "gold": (210, 190, 120),
+        "food": (210, 120, 120), "accent": (176, 182, 192),
+        "accent_deep": (120, 126, 138), "obstacle": (70, 70, 80),
+    },
+}
+THEME_ORDER = ["dark", "neon", "retro", "minimal"]
+
+# Current-theme globals (initialised to "dark"; apply_theme() reassigns them).
+BLACK = DARK = PANEL = PANEL_HOVER = GRID_LINE = BORDER = WHITE = GREY = DIM = (0, 0, 0)
+DIVIDER = RED = GOLD = FOOD_COLOR = ACCENT = ACCENT_DEEP = OBSTACLE = (0, 0, 0)
+
+
+def apply_theme(name):
+    """Reassign the color globals from THEMES[name] (defaults to 'dark')."""
+    global BLACK, DARK, PANEL, PANEL_HOVER, GRID_LINE, BORDER, WHITE, GREY, DIM
+    global DIVIDER, RED, GOLD, FOOD_COLOR, ACCENT, ACCENT_DEEP, OBSTACLE
+    t = THEMES.get(name, THEMES["dark"])
+    BLACK, DARK, PANEL, PANEL_HOVER = t["black"], t["dark"], t["panel"], t["panel_hover"]
+    GRID_LINE, BORDER, WHITE, GREY, DIM = t["grid"], t["border"], t["white"], t["grey"], t["dim"]
+    DIVIDER, RED, GOLD, FOOD_COLOR = t["divider"], t["red"], t["gold"], t["food"]
+    ACCENT, ACCENT_DEEP, OBSTACLE = t["accent"], t["accent_deep"], t["obstacle"]
+
+
+apply_theme("dark")
 
 # Default corner radius for GUI buttons (rounder = more modern).
 BTN_RADIUS = 12
@@ -309,6 +352,17 @@ TRANSLATIONS = {
         "tchinese": "Traditional Chinese",
         "schinese": "Simplified Chinese",
         "credits": "Creators: SpaceSquare, Claude Code   ·   Owner: SpaceSquare",
+        "theme_btn": "Theme", "theme_menu": "Choose a theme",
+        "theme_dark": "Dark", "theme_neon": "Neon", "theme_retro": "Retro CRT",
+        "theme_minimal": "Minimal",
+        "audio_btn": "Audio", "audio_menu": "Audio", "sound_label": "Sound effects",
+        "music_label": "Music", "on": "On", "off": "Off",
+        "controls_btn": "Controls", "controls_menu": "Controls",
+        "rebind_hint": "Click a key to rebind  ·  R reset",
+        "press_key": "Press any key…", "reset_default": "Reset to default",
+        "dir_up": "Up", "dir_down": "Down", "dir_left": "Left", "dir_right": "Right",
+        "leaderboard_btn": "Leaderboard", "leaderboard_title": "Leaderboard",
+        "empty_board": "No scores yet", "fps_label": "FPS counter",
         "ver_checking": "v{ver} · checking for updates…",
         "ver_latest": "v{ver} · up to date",
         "ver_outdated": "v{ver} · update available: {latest}",
@@ -364,6 +418,17 @@ TRANSLATIONS = {
         "tchinese": "繁體中文",
         "schinese": "簡體中文",
         "credits": "創作者：SpaceSquare、Claude Code   ·   擁有者：SpaceSquare",
+        "theme_btn": "佈景主題", "theme_menu": "選擇佈景主題",
+        "theme_dark": "深色", "theme_neon": "霓虹", "theme_retro": "復古 CRT",
+        "theme_minimal": "極簡",
+        "audio_btn": "音效", "audio_menu": "音效設定", "sound_label": "音效",
+        "music_label": "背景音樂", "on": "開", "off": "關",
+        "controls_btn": "按鍵設定", "controls_menu": "按鍵設定",
+        "rebind_hint": "點選按鍵以重新設定  ·  R 還原",
+        "press_key": "請按任意鍵…", "reset_default": "還原預設",
+        "dir_up": "上", "dir_down": "下", "dir_left": "左", "dir_right": "右",
+        "leaderboard_btn": "排行榜", "leaderboard_title": "排行榜",
+        "empty_board": "尚無紀錄", "fps_label": "FPS 顯示",
         "ver_checking": "v{ver} · 檢查更新中…",
         "ver_latest": "v{ver} · 已是最新版",
         "ver_outdated": "v{ver} · 有可用更新：{latest}",
@@ -419,6 +484,17 @@ TRANSLATIONS = {
         "tchinese": "繁体中文",
         "schinese": "简体中文",
         "credits": "创作者：SpaceSquare、Claude Code   ·   拥有者：SpaceSquare",
+        "theme_btn": "界面主题", "theme_menu": "选择界面主题",
+        "theme_dark": "深色", "theme_neon": "霓虹", "theme_retro": "复古 CRT",
+        "theme_minimal": "极简",
+        "audio_btn": "音效", "audio_menu": "音效设置", "sound_label": "音效",
+        "music_label": "背景音乐", "on": "开", "off": "关",
+        "controls_btn": "按键设置", "controls_menu": "按键设置",
+        "rebind_hint": "点选按键以重新设置  ·  R 还原",
+        "press_key": "请按任意键…", "reset_default": "还原默认",
+        "dir_up": "上", "dir_down": "下", "dir_left": "左", "dir_right": "右",
+        "leaderboard_btn": "排行榜", "leaderboard_title": "排行榜",
+        "empty_board": "暂无记录", "fps_label": "FPS 显示",
         "ver_checking": "v{ver} · 检查更新中…",
         "ver_latest": "v{ver} · 已是最新版",
         "ver_outdated": "v{ver} · 有可用更新：{latest}",
@@ -427,6 +503,26 @@ TRANSLATIONS = {
 }
 
 LANG_ORDER = ["en", "zh_tw", "zh_cn"]
+
+# Leaderboard: how many top scores to keep per mode.
+LEADERBOARD_SIZE = 5
+
+# Remappable movement keys (Player 1 / single player). Stored in the profile
+# as integer keycodes so they survive JSON round-trips.
+MOVE_DIRS = ["up", "down", "left", "right"]
+DIR_VECTORS = {"up": UP, "down": DOWN, "left": LEFT, "right": RIGHT}
+DEFAULT_KEYMAP = {
+    "up": pygame.K_w, "down": pygame.K_s, "left": pygame.K_a, "right": pygame.K_d,
+}
+
+
+def key_label(code):
+    """Human-readable name for a pygame keycode (e.g. 'W', 'Up')."""
+    try:
+        name = pygame.key.name(int(code))
+    except Exception:
+        name = "?"
+    return name.upper() if len(name) == 1 else name.title()
 
 
 # ---------------------------------------------------------------------------
@@ -442,6 +538,14 @@ class Profile:
     level: int = 1
     xp: int = 0
     highscores: dict = field(default_factory=lambda: {k: 0 for k in MODE_KEYS})
+    # v1.2.0 additions
+    theme: str = "dark"
+    sound: bool = True
+    music: bool = False
+    show_fps: bool = False
+    keymap: dict = field(default_factory=lambda: dict(DEFAULT_KEYMAP))
+    # leaderboards[mode] = list of {"name", "score"} sorted high -> low
+    leaderboards: dict = field(default_factory=lambda: {k: [] for k in MODE_KEYS})
 
     # XP required to reach the *next* level grows linearly.
     @staticmethod
@@ -452,6 +556,7 @@ class Profile:
         """Record a score; return ``True`` if the player levelled up."""
         if score > self.highscores.get(mode_key, 0):
             self.highscores[mode_key] = score
+        self._record_leaderboard(mode_key, score)
         self.xp += score
         levelled = False
         while self.xp >= self.xp_for_level(self.level):
@@ -459,6 +564,12 @@ class Profile:
             self.level += 1
             levelled = True
         return levelled
+
+    def _record_leaderboard(self, mode_key: str, score: int) -> None:
+        board = self.leaderboards.setdefault(mode_key, [])
+        board.append({"name": self.name, "score": int(score)})
+        board.sort(key=lambda e: e["score"], reverse=True)
+        del board[LEADERBOARD_SIZE:]
 
     def to_dict(self) -> dict:
         return {
@@ -468,6 +579,12 @@ class Profile:
             "level": self.level,
             "xp": self.xp,
             "highscores": self.highscores,
+            "theme": self.theme,
+            "sound": self.sound,
+            "music": self.music,
+            "show_fps": self.show_fps,
+            "keymap": self.keymap,
+            "leaderboards": self.leaderboards,
         }
 
     @classmethod
@@ -483,6 +600,25 @@ class Profile:
         scores = data.get("highscores", {})
         # New modes default to 0 for older save files (backward compatible).
         prof.highscores = {k: int(scores.get(k, 0)) for k in MODE_KEYS}
+        prof.theme = data.get("theme", "dark")
+        if prof.theme not in THEMES:
+            prof.theme = "dark"
+        prof.sound = bool(data.get("sound", True))
+        prof.music = bool(data.get("music", False))
+        prof.show_fps = bool(data.get("show_fps", False))
+        km = data.get("keymap", {})
+        prof.keymap = {d: int(km.get(d, DEFAULT_KEYMAP[d])) for d in MOVE_DIRS}
+        boards = data.get("leaderboards", {})
+        prof.leaderboards = {}
+        for k in MODE_KEYS:
+            entries = boards.get(k, [])
+            clean = []
+            for e in entries[:LEADERBOARD_SIZE]:
+                try:
+                    clean.append({"name": str(e["name"])[:14], "score": int(e["score"])})
+                except (KeyError, TypeError, ValueError):
+                    continue
+            prof.leaderboards[k] = clean
         return prof
 
 
@@ -657,11 +793,118 @@ class Snake:
 
 
 # ---------------------------------------------------------------------------
+# Sound — small procedural synth (no audio files, no numpy required)
+# ---------------------------------------------------------------------------
+import array
+import math
+
+
+def _tone(freq, ms, vol=0.35, sr=22050, shape="square"):
+    """Build a 16-bit mono sample buffer for a single enveloped tone."""
+    n = max(1, int(sr * ms / 1000))
+    buf = array.array("h")
+    attack = sr * 0.005
+    release = sr * 0.03
+    for i in range(n):
+        t = i / sr
+        if shape == "square":
+            s = vol if math.sin(2 * math.pi * freq * t) >= 0 else -vol
+        else:
+            s = vol * math.sin(2 * math.pi * freq * t)
+        env = min(1.0, i / attack) * min(1.0, (n - i) / release)
+        buf.append(int(max(-1.0, min(1.0, s * env)) * 32767))
+    return buf
+
+
+def _sequence(notes, sr=22050, vol=0.22, shape="sine"):
+    """Concatenate (freq, ms) notes into one buffer (freq 0 = rest)."""
+    out = array.array("h")
+    for freq, ms in notes:
+        if freq <= 0:
+            out.extend(array.array("h", [0]) * int(sr * ms / 1000))
+        else:
+            out.extend(_tone(freq, ms, vol=vol, sr=sr, shape=shape))
+    return out
+
+
+class SoundManager:
+    """Synthesizes effect and music buffers at startup; respects settings."""
+
+    SR = 22050
+
+    def __init__(self, profile):
+        self.profile = profile
+        self.ok = False
+        self.sounds = {}
+        self.music = None
+        self.music_channel = None
+        try:
+            pygame.mixer.quit()
+            pygame.mixer.init(frequency=self.SR, size=-16, channels=1, buffer=512)
+            self._build()
+            self.ok = True
+        except Exception:
+            self.ok = False
+        if self.ok and self.profile.music:
+            self.start_music()
+
+    def _snd(self, buf):
+        return pygame.mixer.Sound(buffer=buf.tobytes())
+
+    def _build(self):
+        self.sounds = {
+            "eat": self._snd(_tone(880, 70, vol=0.4)),
+            "select": self._snd(_tone(520, 45, vol=0.3)),
+            "crash": self._snd(_tone(150, 240, vol=0.45, shape="square")),
+            "win": self._snd(_sequence([(523, 90), (659, 90), (784, 90), (1046, 160)],
+                                       vol=0.35, shape="square")),
+        }
+        # A gentle looping melody for background music.
+        loop = [
+            (392, 220), (523, 220), (659, 220), (523, 220),
+            (440, 220), (587, 220), (440, 220), (0, 120),
+            (349, 220), (523, 220), (659, 220), (784, 220),
+            (659, 220), (523, 220), (440, 220), (0, 260),
+        ]
+        self.music = self._snd(_sequence(loop, vol=0.12, shape="sine"))
+
+    def play(self, name):
+        if self.ok and self.profile.sound and name in self.sounds:
+            try:
+                self.sounds[name].play()
+            except Exception:
+                pass
+
+    def start_music(self):
+        if not self.ok or not self.music:
+            return
+        try:
+            self.music_channel = self.music.play(loops=-1)
+        except Exception:
+            self.music_channel = None
+
+    def stop_music(self):
+        if self.music_channel:
+            try:
+                self.music_channel.stop()
+            except Exception:
+                pass
+            self.music_channel = None
+
+    def set_music(self, on):
+        if on:
+            self.start_music()
+        else:
+            self.stop_music()
+
+
+# ---------------------------------------------------------------------------
 # The game
 # ---------------------------------------------------------------------------
 # Lightweight state machine.
 STATE_MENU, STATE_READY, STATE_PLAY, STATE_OVER = range(4)
 STATE_COLOR, STATE_LANG, STATE_NAME, STATE_SETTINGS, STATE_AI_MENU = range(4, 9)
+(STATE_THEME, STATE_CONTROLS, STATE_REBIND, STATE_LEADERBOARD, STATE_AUDIO) = range(9, 14)
 
 
 class SnakeGame:
@@ -672,7 +915,9 @@ class SnakeGame:
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         self.clock = pygame.time.Clock()
         self.profile = load_profile()
+        apply_theme(self.profile.theme)
         self.fonts = self._load_fonts()
+        self.sound = SoundManager(self.profile)
         self.state = STATE_MENU
         self.mode = CLASSIC
         self.running = True
@@ -680,6 +925,8 @@ class SnakeGame:
         # Clickable buttons rebuilt every frame: list of (rect, action, arg).
         self.buttons = []
         self.sub_return = STATE_MENU
+        self.mouse_down = None       # (action, arg) armed on mouse-down for press feedback
+        self.rebind_dir = None       # which movement key is being rebound
 
         # Per-round state (initialised in start_round).
         self.snakes = []
@@ -864,7 +1111,10 @@ class SnakeGame:
             if snake.alive:
                 snake.step()
 
+        alive_before = sum(1 for s in self.snakes if s.alive)
         self._resolve_collisions()
+        if sum(1 for s in self.snakes if s.alive) < alive_before:
+            self.sound.play("crash")
         if self.mode not in FILL_MODES:
             self._resolve_food()
         self._check_round_end()
@@ -909,6 +1159,7 @@ class SnakeGame:
             if snake.alive and snake.head == self.food:
                 snake.grow(1)
                 snake.score += 1
+                self.sound.play("eat")
                 if self.mode == SURVIVAL:
                     self.tick_ms = max(45, self.tick_ms - 4)
                 if self.mode == LEVEL and snake.score % 5 == 0:
@@ -963,6 +1214,8 @@ class SnakeGame:
         levelled = self.profile.add_score(mode_key, score)
         if levelled:
             self.level_up_flash = 1800  # ms
+        if self.win:
+            self.sound.play("win")
         save_profile(self.profile)
         self.state = STATE_OVER
 
@@ -978,16 +1231,33 @@ class SnakeGame:
         if event.type == pygame.QUIT:
             self.running = False
             return
+        # Press feedback: arm on mouse-down, fire on mouse-up over the same button.
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            self._handle_click(event.pos)
+            btn = self._button_at(event.pos)
+            self.mouse_down = (btn["action"], btn.get("arg")) if btn else None
+            return
+        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            btn = self._button_at(event.pos)
+            if btn and self.mouse_down == (btn["action"], btn.get("arg")):
+                self._dispatch(btn["action"], btn.get("arg"))
+            self.mouse_down = None
             return
         if event.type != pygame.KEYDOWN:
+            return
+
+        # Key-capture screen intercepts everything.
+        if self.state == STATE_REBIND:
+            self._key_rebind(event)
             return
 
         dispatch = {
             STATE_MENU: self._key_menu,
             STATE_SETTINGS: self._key_settings,
             STATE_AI_MENU: self._key_ai_menu,
+            STATE_THEME: self._key_theme,
+            STATE_AUDIO: self._key_audio,
+            STATE_CONTROLS: self._key_controls,
+            STATE_LEADERBOARD: self._key_simple_back,
             STATE_READY: self._key_ready,
             STATE_PLAY: self._key_play,
             STATE_OVER: self._key_over,
@@ -997,13 +1267,43 @@ class SnakeGame:
         }
         dispatch[self.state](event)
 
-    def _handle_click(self, pos):
+    def _button_at(self, pos):
         for button in reversed(self.buttons):
             if button["rect"].collidepoint(pos):
-                self._dispatch(button["action"], button.get("arg"))
-                return
+                return button
+        return None
 
     def _dispatch(self, action, arg=None):
+        if action != "dir":
+            self.sound.play("select")
+        if action == "open_theme":
+            self._open_sub(STATE_THEME); return
+        if action == "open_audio":
+            self._open_sub(STATE_AUDIO); return
+        if action == "open_controls":
+            self._open_sub(STATE_CONTROLS); return
+        if action == "open_leaderboard":
+            self._open_sub(STATE_LEADERBOARD); return
+        if action == "set_theme":
+            self.profile.theme = arg
+            apply_theme(arg)
+            save_profile(self.profile); return
+        if action == "toggle_sound":
+            self.profile.sound = not self.profile.sound
+            save_profile(self.profile); return
+        if action == "toggle_music":
+            self.profile.music = not self.profile.music
+            self.sound.set_music(self.profile.music)
+            save_profile(self.profile); return
+        if action == "toggle_fps":
+            self.profile.show_fps = not self.profile.show_fps
+            save_profile(self.profile); return
+        if action == "rebind":
+            self.rebind_dir = arg
+            self.state = STATE_REBIND; return
+        if action == "reset_keys":
+            self.profile.keymap = dict(DEFAULT_KEYMAP)
+            save_profile(self.profile); return
         if action == "start_mode":
             self.mode = arg
             self.start_round()
@@ -1067,15 +1367,67 @@ class SnakeGame:
             self.running = False
 
     def _key_settings(self, event):
-        if event.key == pygame.K_1:
-            self._open_sub(STATE_LANG)
-        elif event.key == pygame.K_2:
-            self._open_sub(STATE_COLOR)
-        elif event.key == pygame.K_3:
-            self.name_buffer = self.profile.name
-            self._open_sub(STATE_NAME)
+        actions = {
+            pygame.K_1: lambda: self._open_sub(STATE_LANG),
+            pygame.K_2: lambda: self._open_sub(STATE_COLOR),
+            pygame.K_3: lambda: self._open_sub(STATE_THEME),
+            pygame.K_4: lambda: self._open_sub(STATE_AUDIO),
+            pygame.K_5: lambda: self._open_sub(STATE_CONTROLS),
+            pygame.K_6: self._open_name_screen,
+        }
+        if event.key in actions:
+            actions[event.key]()
         elif event.key == pygame.K_ESCAPE:
             self.state = STATE_MENU
+
+    def _open_name_screen(self):
+        self.name_buffer = self.profile.name
+        self._open_sub(STATE_NAME)
+
+    def _key_theme(self, event):
+        if event.key == pygame.K_ESCAPE:
+            self.state = self.sub_return
+        elif pygame.K_1 <= event.key <= pygame.K_4:
+            idx = event.key - pygame.K_1
+            if idx < len(THEME_ORDER):
+                self.profile.theme = THEME_ORDER[idx]
+                apply_theme(self.profile.theme)
+                save_profile(self.profile)
+
+    def _key_audio(self, event):
+        if event.key == pygame.K_ESCAPE:
+            self.state = self.sub_return
+        elif event.key == pygame.K_1:
+            self._dispatch("toggle_sound")
+        elif event.key == pygame.K_2:
+            self._dispatch("toggle_music")
+        elif event.key == pygame.K_3:
+            self._dispatch("toggle_fps")
+
+    def _key_controls(self, event):
+        if event.key == pygame.K_ESCAPE:
+            self.state = self.sub_return
+        elif event.key == pygame.K_r:
+            self._dispatch("reset_keys")
+        elif pygame.K_1 <= event.key <= pygame.K_4:
+            self.rebind_dir = MOVE_DIRS[event.key - pygame.K_1]
+            self.state = STATE_REBIND
+
+    def _key_rebind(self, event):
+        if event.key == pygame.K_ESCAPE:
+            self.rebind_dir = None
+            self.state = STATE_CONTROLS
+            return
+        if self.rebind_dir is not None:
+            self.profile.keymap[self.rebind_dir] = event.key
+            save_profile(self.profile)
+            self.sound.play("select")
+        self.rebind_dir = None
+        self.state = STATE_CONTROLS
+
+    def _key_simple_back(self, event):
+        if event.key in (pygame.K_ESCAPE, pygame.K_m):
+            self.state = self.sub_return
 
     def _key_ai_menu(self, event):
         key = event.key
@@ -1105,14 +1457,12 @@ class SnakeGame:
             return
         p1 = self.snakes[0]
         if not p1.is_ai:
-            if key == pygame.K_w:
-                p1.set_direction(UP)
-            elif key == pygame.K_s:
-                p1.set_direction(DOWN)
-            elif key == pygame.K_a:
-                p1.set_direction(LEFT)
-            elif key == pygame.K_d:
-                p1.set_direction(RIGHT)
+            # Player 1 / single player: the remappable keymap.
+            for d in MOVE_DIRS:
+                if key == self.profile.keymap[d]:
+                    p1.set_direction(DIR_VECTORS[d])
+                    break
+            # Arrow keys remain a fixed convenience in single-player.
             if len(self.snakes) == 1:
                 if key == pygame.K_UP:
                     p1.set_direction(UP)
@@ -1177,18 +1527,21 @@ class SnakeGame:
     def draw(self):
         self.buttons = []
         self.screen.fill(BLACK)
-        if self.state == STATE_MENU:
-            self._draw_menu()
-        elif self.state == STATE_SETTINGS:
-            self._draw_settings()
-        elif self.state == STATE_AI_MENU:
-            self._draw_ai_menu()
-        elif self.state == STATE_COLOR:
-            self._draw_color_menu()
-        elif self.state == STATE_LANG:
-            self._draw_lang_menu()
-        elif self.state == STATE_NAME:
-            self._draw_name_menu()
+        screens = {
+            STATE_MENU: self._draw_menu,
+            STATE_SETTINGS: self._draw_settings,
+            STATE_AI_MENU: self._draw_ai_menu,
+            STATE_COLOR: self._draw_color_menu,
+            STATE_LANG: self._draw_lang_menu,
+            STATE_NAME: self._draw_name_menu,
+            STATE_THEME: self._draw_theme_menu,
+            STATE_AUDIO: self._draw_audio_menu,
+            STATE_CONTROLS: self._draw_controls_menu,
+            STATE_REBIND: self._draw_rebind,
+            STATE_LEADERBOARD: self._draw_leaderboard,
+        }
+        if self.state in screens:
+            screens[self.state]()
         else:
             self._draw_play_area()
             self._draw_hud()
@@ -1197,7 +1550,13 @@ class SnakeGame:
                 self._draw_center_banner(self.t("press_space"))
             elif self.state == STATE_OVER:
                 self._draw_game_over()
+        if self.profile.show_fps:
+            self._draw_fps()
         pygame.display.flip()
+
+    def _draw_fps(self):
+        fps = int(self.clock.get_fps())
+        self._text(f"{fps} FPS", "tiny", DIM, topleft=(12, HEIGHT - 24))
 
     def _text(self, text, font, color, center=None, topleft=None):
         surf = self.fonts[font].render(text, True, color)
@@ -1221,16 +1580,29 @@ class SnakeGame:
             pygame.draw.rect(glow, (*color, alpha), r, border_radius=radius + grow)
         self.screen.blit(glow, (rect.x - pad, rect.y - pad))
 
+    def _draw_badge(self, rect, text, active):
+        """A tiny shortcut-key hint in the button's top-left corner."""
+        self._text(str(text), "tiny", ACCENT if active else DIM,
+                   topleft=(rect.x + 11, rect.y + 8))
+
     def _button(self, rect, label, action, arg=None, font="small",
-                selected=False, swatch=None, radius=BTN_RADIUS):
+                selected=False, swatch=None, radius=BTN_RADIUS, badge=None):
         hover = rect.collidepoint(pygame.mouse.get_pos())
-        if hover and not selected:
+        pressed = self.mouse_down == (action, arg) and hover
+        if hover and not selected and not pressed:
             self._glow(rect, ACCENT, radius)
-        fill = ACCENT if selected else (PANEL_HOVER if hover else PANEL)
-        border = ACCENT if (hover or selected) else BORDER
+        if pressed:
+            fill = ACCENT_DEEP
+        elif selected:
+            fill = ACCENT
+        elif hover:
+            fill = PANEL_HOVER
+        else:
+            fill = PANEL
+        active = hover or selected or pressed
         pygame.draw.rect(self.screen, fill, rect, border_radius=radius)
-        pygame.draw.rect(self.screen, border, rect, 2 if (hover or selected) else 1,
-                         border_radius=radius)
+        pygame.draw.rect(self.screen, ACCENT if active else BORDER, rect,
+                         2 if active else 1, border_radius=radius)
         txt_color = BLACK if selected else WHITE
         cx = rect.centerx
         if swatch is not None:
@@ -1239,56 +1611,70 @@ class SnakeGame:
             pygame.draw.rect(self.screen, BORDER, sw, 1, border_radius=6)
             cx += 16
         self._text(label, font, txt_color, center=(cx, rect.centery))
+        if badge is not None:
+            self._draw_badge(rect, badge, active)
         self.buttons.append({"rect": rect, "action": action, "arg": arg})
 
-    def _mode_button(self, rect, mode):
+    def _mode_button(self, rect, mode, badge=None):
         key = MODE_KEYS[mode]
         hover = rect.collidepoint(pygame.mouse.get_pos())
-        if hover:
+        pressed = self.mouse_down == ("start_mode", mode) and hover
+        if hover and not pressed:
             self._glow(rect, ACCENT, BTN_RADIUS)
-        pygame.draw.rect(self.screen, PANEL_HOVER if hover else PANEL, rect,
-                         border_radius=BTN_RADIUS)
-        pygame.draw.rect(self.screen, ACCENT if hover else BORDER, rect,
-                         2 if hover else 1, border_radius=BTN_RADIUS)
+        active = hover or pressed
+        pygame.draw.rect(self.screen, ACCENT_DEEP if pressed else (PANEL_HOVER if hover else PANEL),
+                         rect, border_radius=BTN_RADIUS)
+        pygame.draw.rect(self.screen, ACCENT if active else BORDER, rect,
+                         2 if active else 1, border_radius=BTN_RADIUS)
         self._text(self.t(key), "small", WHITE,
                    center=(rect.centerx, rect.centery - 9))
         best = self.profile.highscores.get(key, 0)
         self._text(f"{self.t('high')}: {best}", "tiny", GREY,
                    center=(rect.centerx, rect.centery + 13))
+        if badge is not None:
+            self._draw_badge(rect, badge, active)
         self.buttons.append({"rect": rect, "action": "start_mode", "arg": mode})
 
     # -- Menus --------------------------------------------------------------
     def _draw_menu(self):
         # Bold title; credits dimmed to keep focus on the buttons below.
-        self._text(self.t("title"), "title", ACCENT, center=(WIDTH // 2, 104))
+        self._text(self.t("title"), "title", ACCENT, center=(WIDTH // 2, 102))
         self._text(self.t("credits"), "tiny", DIM, center=(WIDTH // 2, 144))
 
         # Small version / update status pinned to the top-right corner.
         self._draw_status_corner()
 
-        # Mode grid (2 cols x 3 rows) + an All-AI / Settings row, vertically
-        # centered in the band between the credits and the bottom card.
-        bw, bh, gap = 290, 64, 20
-        srow_h = 56
-        block_h = 3 * bh + 2 * gap + 22 + srow_h
-        band_top, band_bottom = 176, HEIGHT - 120
-        start_x = (WIDTH - (2 * bw + gap)) // 2
+        # Wider side margins so nothing hugs the edges.
+        margin, gap = 50, 22
+        bw = (WIDTH - 2 * margin - gap) // 2
+        bh, srow_h = 64, 54
+        block_h = 3 * bh + 2 * gap + 28 + srow_h
+        band_top, band_bottom = 178, HEIGHT - 134
+        start_x = margin
         start_y = band_top + max(0, (band_bottom - band_top - block_h) // 2)
         for i, mode in enumerate(MAIN_MENU_MODES):
             col, row = i % 2, i // 2
             rect = pygame.Rect(start_x + col * (bw + gap),
                                start_y + row * (bh + gap), bw, bh)
-            self._mode_button(rect, mode)
+            self._mode_button(rect, mode, badge=i + 1)
 
-        row_y = start_y + 3 * (bh + gap) + 22
-        self._button(pygame.Rect(start_x, row_y, bw, srow_h),
-                     self.t("ai_modes"), "open_ai_menu")
-        self._button(pygame.Rect(start_x + bw + gap, row_y, bw, srow_h),
-                     self.t("settings"), "open_settings")
+        # Three-wide row: All-AI · Leaderboard · Settings (with key hints).
+        row_y = start_y + 3 * (bh + gap) + 28
+        tw = (WIDTH - 2 * margin - 2 * gap) // 3
+        self._button(pygame.Rect(start_x, row_y, tw, srow_h),
+                     self.t("ai_modes"), "open_ai_menu", font="tiny", badge="A")
+        self._button(pygame.Rect(start_x + tw + gap, row_y, tw, srow_h),
+                     self.t("leaderboard_btn"), "open_leaderboard", font="tiny")
+        self._button(pygame.Rect(start_x + 2 * (tw + gap), row_y, tw, srow_h),
+                     self.t("settings"), "open_settings", font="tiny", badge="S")
 
-        # Profile card (name | level | xp) pinned near the bottom.
-        self._draw_profile_card(HEIGHT - 98)
-        self._text(self.t("menu_hint"), "tiny", DIM, center=(WIDTH // 2, HEIGHT - 32))
+        # A thin separator divides the menu from the profile card.
+        card_top = HEIGHT - 100
+        sep_y = card_top - 22
+        pygame.draw.line(self.screen, DIVIDER,
+                         (margin + 40, sep_y), (WIDTH - margin - 40, sep_y))
+        self._draw_profile_card(card_top)
+        self._text(self.t("menu_hint"), "tiny", DIM, center=(WIDTH // 2, HEIGHT - 28))
 
     def _draw_status_corner(self):
         """Compact version + colored status dot in the top-right corner."""
@@ -1336,20 +1722,106 @@ class SnakeGame:
                    "small", GREY, center=((d2 + card.right) // 2, card.centery))
 
     def _draw_settings(self):
-        self._text(self.t("settings_title"), "big", ACCENT, center=(WIDTH // 2, 90))
-        bw, bh = 360, 60
+        self._text(self.t("settings_title"), "big", ACCENT, center=(WIDTH // 2, 78))
+        bw, bh, vg = 380, 58, 14
         x = (WIDTH - bw) // 2
+        y0 = 150
         lang_label = {"en": "English", "zh_tw": "繁體中文", "zh_cn": "简体中文"}[self.profile.language]
-        self._button(pygame.Rect(x, 180, bw, bh),
-                     f"1.  {self.t('lang_btn')}:  {lang_label}", "open_lang")
-        self._button(pygame.Rect(x, 180 + bh + 18, bw, bh),
-                     f"2.  {self.t('color_btn')}", "open_color",
-                     swatch=SNAKE_COLORS[self.profile.color_index])
-        self._button(pygame.Rect(x, 180 + 2 * (bh + 18), bw, bh),
-                     f"3.  {self.t('name_btn')}:  {self.profile.name}", "open_name")
-        self._button(pygame.Rect(x, 180 + 3 * (bh + 18) + 12, bw, 50),
+        theme_label = self.t("theme_" + self.profile.theme)
+        rows = [
+            (f"{self.t('lang_btn')}:  {lang_label}", "open_lang", None),
+            (f"{self.t('color_btn')}", "open_color", SNAKE_COLORS[self.profile.color_index]),
+            (f"{self.t('theme_btn')}:  {theme_label}", "open_theme", None),
+            (f"{self.t('audio_btn')}", "open_audio", None),
+            (f"{self.t('controls_btn')}", "open_controls", None),
+            (f"{self.t('name_btn')}:  {self.profile.name}", "open_name", None),
+        ]
+        for i, (label, action, swatch) in enumerate(rows):
+            self._button(pygame.Rect(x, y0 + i * (bh + vg), bw, bh),
+                         f"{label}", action, swatch=swatch, badge=i + 1)
+        self._button(pygame.Rect(x, y0 + 6 * (bh + vg) + 6, bw, 50),
                      self.t("back"), "back_menu")
-        self._text(self.t("back_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 36))
+        self._text(self.t("back_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 30))
+
+    def _draw_theme_menu(self):
+        self._text(self.t("theme_menu"), "big", ACCENT, center=(WIDTH // 2, 90))
+        bw, bh = 380, 60
+        x = (WIDTH - bw) // 2
+        for i, name in enumerate(THEME_ORDER):
+            sw = THEMES[name]["accent"]
+            self._button(pygame.Rect(x, 180 + i * (bh + 18), bw, bh),
+                         f"{self.t('theme_' + name)}", "set_theme", name,
+                         selected=(self.profile.theme == name), swatch=sw, badge=i + 1)
+        self._button(pygame.Rect(x, 180 + 4 * (bh + 18) + 8, bw, 50),
+                     self.t("back"), "sub_back")
+        self._text(self.t("back_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 30))
+
+    def _draw_audio_menu(self):
+        self._text(self.t("audio_menu"), "big", ACCENT, center=(WIDTH // 2, 100))
+        bw, bh = 400, 62
+        x = (WIDTH - bw) // 2
+        toggles = [
+            (self.t("sound_label"), self.profile.sound, "toggle_sound"),
+            (self.t("music_label"), self.profile.music, "toggle_music"),
+            (self.t("fps_label"), self.profile.show_fps, "toggle_fps"),
+        ]
+        for i, (label, on, action) in enumerate(toggles):
+            state = self.t("on") if on else self.t("off")
+            self._button(pygame.Rect(x, 190 + i * (bh + 18), bw, bh),
+                         f"{label}:  {state}", action, badge=i + 1)
+        self._button(pygame.Rect(x, 190 + 3 * (bh + 18) + 10, bw, 50),
+                     self.t("back"), "sub_back")
+        self._text(self.t("back_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 30))
+
+    def _draw_controls_menu(self):
+        self._text(self.t("controls_menu"), "big", ACCENT, center=(WIDTH // 2, 90))
+        bw, bh = 400, 60
+        x = (WIDTH - bw) // 2
+        for i, d in enumerate(MOVE_DIRS):
+            label = f"{self.t('dir_' + d)}:  [ {key_label(self.profile.keymap[d])} ]"
+            self._button(pygame.Rect(x, 170 + i * (bh + 16), bw, bh),
+                         label, "rebind", d, badge=i + 1)
+        self._button(pygame.Rect(x, 170 + 4 * (bh + 16) + 6, bw // 2 - 6, 50),
+                     self.t("reset_default"), "reset_keys", font="tiny")
+        self._button(pygame.Rect(x + bw // 2 + 6, 170 + 4 * (bh + 16) + 6, bw // 2 - 6, 50),
+                     self.t("back"), "sub_back")
+        self._text(self.t("rebind_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 30))
+
+    def _draw_rebind(self):
+        # Keep the controls list visible, dimmed, with a capture prompt over it.
+        self._draw_controls_menu()
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.screen.blit(overlay, (0, 0))
+        d = self.rebind_dir or "up"
+        self._text(self.t("dir_" + d), "mid", ACCENT, center=(WIDTH // 2, HEIGHT // 2 - 30))
+        self._text(self.t("press_key"), "big", WHITE, center=(WIDTH // 2, HEIGHT // 2 + 30))
+
+    def _draw_leaderboard(self):
+        self._text(self.t("leaderboard_title"), "big", ACCENT, center=(WIDTH // 2, 64))
+        margin = 40
+        col_w = (WIDTH - 2 * margin - 20) // 2
+        x0 = margin
+        y0 = 120
+        row_h = 118
+        for i, key in enumerate(MODE_KEYS):
+            col, row = i % 2, i // 2
+            bx = x0 + col * (col_w + 20)
+            by = y0 + row * row_h
+            panel = pygame.Rect(bx, by, col_w, row_h - 14)
+            pygame.draw.rect(self.screen, PANEL, panel, border_radius=10)
+            pygame.draw.rect(self.screen, BORDER, panel, 1, border_radius=10)
+            self._text(self.t(key), "small", ACCENT, topleft=(bx + 12, by + 8))
+            board = self.profile.leaderboards.get(key, [])
+            if not board:
+                self._text(self.t("empty_board"), "tiny", DIM, topleft=(bx + 12, by + 38))
+            for r, entry in enumerate(board):
+                line = f"{r + 1}. {entry['name'][:9]:<9}  {entry['score']}"
+                self._text(line, "tiny", WHITE if r == 0 else GREY,
+                           topleft=(bx + 12, by + 36 + r * 14))
+        self._button(pygame.Rect(WIDTH // 2 - 90, HEIGHT - 86, 180, 48),
+                     self.t("back"), "sub_back")
+        self._text(self.t("back_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 28))
 
     def _draw_ai_menu(self):
         self._text(self.t("ai_menu_title"), "big", ACCENT, center=(WIDTH // 2, 90))
@@ -1425,7 +1897,7 @@ class SnakeGame:
             pygame.draw.line(self.screen, GRID_LINE, (0, py), (PLAY_WIDTH, py))
 
         for (ox, oy) in self.obstacles:
-            self._cell_rect(ox, oy, fill=(70, 70, 86), inset=1, radius=4)
+            self._cell_rect(ox, oy, fill=OBSTACLE, inset=1, radius=4)
 
         if self.food is not None:
             fx, fy = self.food

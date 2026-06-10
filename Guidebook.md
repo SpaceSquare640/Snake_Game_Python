@@ -26,9 +26,11 @@ sure Pygame is installed. This only happens once.
 
 ### 2. The main menu
 
-- **Click** a mode button, or press a number key **`1`–`6`**.
-- Two more buttons: **All-AI Modes** (the AI-only modes) and **Settings**
-  (language, snake color, player name).
+- **Click** a mode button (each shows a `1`–`6` shortcut badge), or press the key.
+- Three more buttons: **All-AI Modes**, **Leaderboard** (top-5 per mode), and
+  **Settings** — language, snake color, **theme** (Dark / Neon / Retro CRT /
+  Minimal), **audio** (sound, music, FPS counter), **controls** (rebind your
+  movement keys), and player name.
 - Your **name**, **level**, and **XP** are shown at the bottom, next to your
   current snake-color swatch. The version line tells you if an update is out.
 - Press **`ESC`** to quit.
@@ -96,8 +98,10 @@ python Snake_Game_Python.py
 
 ### 2. 主選單
 
-- **點選** 模式按鈕，或按數字鍵 **`1`–`6`**。
-- 另有兩顆按鈕：**全 AI 模式**（純 AI 模式）與 **設定**（語言、蛇身顏色、玩家名稱）。
+- **點選** 模式按鈕（每顆都有 `1`–`6` 快捷鍵標示），或按對應按鍵。
+- 另有三顆按鈕：**全 AI 模式**、**排行榜**（各模式前 5 名），以及 **設定** —
+  語言、蛇身顏色、**佈景主題**（深色／霓虹／復古 CRT／極簡）、**音效**（音效、音樂、
+  FPS 顯示）、**按鍵設定**（重新對應移動鍵）與玩家名稱。
 - 畫面下方會顯示你的 **名稱**、**等級** 與 **經驗值**，旁邊是目前的蛇身顏色方塊；
   版本列會提示是否有可用更新。
 - 按 **`ESC`** 離開。
@@ -163,8 +167,10 @@ python Snake_Game_Python.py
 
 ### 2. 主菜单
 
-- **点选** 模式按钮，或按数字键 **`1`–`6`**。
-- 另有两个按钮：**全 AI 模式**（纯 AI 模式）与 **设置**（语言、蛇身颜色、玩家名称）。
+- **点选** 模式按钮（每个都有 `1`–`6` 快捷键标示），或按对应按键。
+- 另有三个按钮：**全 AI 模式**、**排行榜**（各模式前 5 名），以及 **设置** —
+  语言、蛇身颜色、**界面主题**（深色／霓虹／复古 CRT／极简）、**音效**（音效、音乐、
+  FPS 显示）、**按键设置**（重新映射移动键）与玩家名称。
 - 画面下方会显示你的 **名称**、**等级** 与 **经验值**，旁边是当前的蛇身颜色方块；
   版本行会提示是否有可用更新。
 - 按 **`ESC`** 退出。

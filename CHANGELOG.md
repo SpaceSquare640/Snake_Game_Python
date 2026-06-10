@@ -10,6 +10,21 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## English
 
+### [1.2.0] — 2026-06-10
+
+#### Added
+- **Visual themes** — Dark, Neon, Retro CRT, and Minimal, switchable in Settings.
+- **Sound effects** (eat / select / crash / win) plus a **background-music**
+  toggle, synthesized at runtime (no audio files).
+- **Leaderboard** — top-5 scores per mode, reachable from the main menu.
+- **Key remapping** — rebind the movement keys under Settings → Controls.
+- **Optional FPS counter** (Settings → Audio).
+
+#### Changed (UI)
+- **Shortcut badges** (`1`–`6`, `A`, `S`) on the menu buttons.
+- Wider margins, a thin **separator** above the profile card, smoother hover,
+  and **press/click feedback** on every button.
+
 ### [1.1.1] — 2026-06-10
 
 #### Changed (UI polish)
@@ -80,6 +95,20 @@ First public release.
 
 ## 繁體中文
 
+### [1.2.0] — 2026-06-10
+
+#### 新增
+- **佈景主題** — 深色、霓虹、復古 CRT、極簡，可於設定中切換。
+- **音效**（吃食物／選擇／碰撞／勝利）以及 **背景音樂** 開關，皆於執行時合成（無音檔）。
+- **排行榜** — 各模式前 5 名，從主選單進入。
+- **按鍵重新對應** — 於 設定 → 按鍵設定 重新綁定移動鍵。
+- **可選 FPS 顯示**（設定 → 音效）。
+
+#### 變更（介面）
+- 選單按鈕加上 **快捷鍵標示**（`1`–`6`、`A`、`S`）。
+- 加寬邊距、玩家資訊卡上方加入細 **分隔線**、更平滑的懸停效果，並為每顆按鈕加入
+  **點擊回饋**。
+
 ### [1.1.1] — 2026-06-10
 
 #### 變更（介面優化）
@@ -137,6 +166,20 @@ First public release.
 
 ## 简体中文
 
+### [1.2.0] — 2026-06-10
+
+#### 新增
+- **界面主题** — 深色、霓虹、复古 CRT、极简，可在设置中切换。
+- **音效**（吃食物／选择／碰撞／胜利）以及 **背景音乐** 开关，均在运行时合成（无音频文件）。
+- **排行榜** — 各模式前 5 名，从主菜单进入。
+- **按键重新映射** — 在 设置 → 按键设置 重新绑定移动键。
+- **可选 FPS 显示**（设置 → 音效）。
+
+#### 变更（界面）
+- 菜单按钮加上 **快捷键标示**（`1`–`6`、`A`、`S`）。
+- 加宽边距、玩家信息卡上方加入细 **分隔线**、更平滑的悬停效果，并为每个按钮加入
+  **点击反馈**。
+
 ### [1.1.1] — 2026-06-10
 
 #### 变更（界面优化）
@@ -190,6 +233,7 @@ First public release.
 - **自定义许可协议**，附带署名要求（创作者：SpaceSquare、Claude Code；拥有者：
   SpaceSquare），并提供三种语言版本。
 
+[1.2.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.2.0
 [1.1.1]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.1.1
 [1.1.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.1.0
 [1.0.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.0.0
