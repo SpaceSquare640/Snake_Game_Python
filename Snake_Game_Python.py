@@ -4,12 +4,18 @@
 Features
 --------
 * Self-contained auto-setup bootstrap (checks Python, installs/updates Pygame).
-* Six game modes: Classic, Survival, Battle, Level, AI vs AI, AI vs Human.
+* Eight game modes across two menus:
+  - Main: Classic, Survival, Battle, Level, AI vs Human, Player Fill.
+  - All-AI menu: AI vs AI, AI Fill.
+* On-launch update check against the project's GitHub Releases.
+* Full on-screen GUI: clickable menus, a Settings menu, an All-AI menu, and a
+  four-button D-pad for up/down/left/right.
 * Three languages: English (default), Traditional Chinese, Simplified Chinese.
 * Player profiles with a persistent, XP-based level.
 * Nine selectable snake colors.
 * Persistent save data (``snake_save.json``).
-* A Breadth-First-Search (BFS) AI with a survival fallback heuristic.
+* A Breadth-First-Search (BFS) AI with a survival fallback, plus a perfect
+  Hamiltonian-cycle "fill the board" AI.
 
 Run with::
 
@@ -111,8 +117,8 @@ bootstrap()
 # Imports (safe now that the bootstrap has guaranteed Pygame)
 # ---------------------------------------------------------------------------
 import json
-import os
 import random
+import threading
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -120,17 +126,59 @@ from pathlib import Path
 import pygame
 
 # ---------------------------------------------------------------------------
+# Version / update check
+# ---------------------------------------------------------------------------
+APP_VERSION = "1.1.0"
+GITHUB_REPO = "SpaceSquare640/Snake_Game_Python"
+
+
+def parse_version(text: str) -> tuple:
+    """Parse a version/tag string like 'v1.2.0' into a comparable tuple."""
+    parts = []
+    for chunk in text.strip().lstrip("vV").split("."):
+        digits = ""
+        for ch in chunk:
+            if ch.isdigit():
+                digits += ch
+            else:
+                break
+        parts.append(int(digits) if digits else 0)
+    return tuple(parts) if parts else (0,)
+
+
+def fetch_latest_version() -> str:
+    """Return the latest release tag from GitHub (raises on failure)."""
+    import urllib.request
+
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Snake_Game_Python",
+            "Accept": "application/vnd.github+json",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=6) as resp:
+        data = json.load(resp)
+    return data.get("tag_name", "")
+
+
+# ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 CELL = 28
 COLS = 24
-ROWS = 22
+ROWS = 22  # even -> a grid Hamiltonian cycle always exists
 HUD_HEIGHT = CELL * 2
+CONTROL_HEIGHT = 112
 PLAY_WIDTH = COLS * CELL
 PLAY_HEIGHT = ROWS * CELL
+PLAY_TOP = HUD_HEIGHT
+CONTROL_TOP = HUD_HEIGHT + PLAY_HEIGHT
 WIDTH = PLAY_WIDTH
-HEIGHT = PLAY_HEIGHT + HUD_HEIGHT
+HEIGHT = PLAY_HEIGHT + HUD_HEIGHT + CONTROL_HEIGHT
 FPS = 60
+
 
 def _app_dir() -> Path:
     """Writable directory next to the app (handles the frozen exe case)."""
@@ -153,10 +201,13 @@ ICON_PATH = resource_path("assets/icon.png")
 # Colors -------------------------------------------------------------------
 BLACK = (15, 15, 20)
 DARK = (26, 26, 34)
+PANEL = (32, 32, 42)
+HOVER = (48, 48, 62)
 GRID_LINE = (34, 34, 44)
 WHITE = (235, 235, 240)
 GREY = (140, 140, 150)
 RED = (220, 70, 70)
+GOLD = (240, 200, 90)
 FOOD_COLOR = (235, 80, 90)
 ACCENT = (90, 200, 160)
 
@@ -183,8 +234,15 @@ LEFT = (-1, 0)
 RIGHT = (1, 0)
 
 # Game modes ---------------------------------------------------------------
-CLASSIC, SURVIVAL, BATTLE, LEVEL, AI_AI, AI_HUMAN = range(6)
-MODE_KEYS = ["classic", "survival", "battle", "level", "ai_ai", "ai_human"]
+(CLASSIC, SURVIVAL, BATTLE, LEVEL, AI_HUMAN, PLAYER_FILL, AI_AI, AI_FILL) = range(8)
+MODE_KEYS = [
+    "classic", "survival", "battle", "level",
+    "ai_human", "player_fill", "ai_ai", "ai_fill",
+]
+MAIN_MENU_MODES = [CLASSIC, SURVIVAL, BATTLE, LEVEL, AI_HUMAN, PLAYER_FILL]
+AI_MENU_MODES = [AI_AI, AI_FILL]
+TWO_SNAKE_MODES = {BATTLE, AI_AI, AI_HUMAN}
+FILL_MODES = {PLAYER_FILL, AI_FILL}
 
 
 # ---------------------------------------------------------------------------
@@ -200,10 +258,15 @@ TRANSLATIONS = {
         "level": "Level",
         "ai_ai": "AI vs AI",
         "ai_human": "AI vs Human",
-        "press_space": "Press SPACE to start",
+        "player_fill": "Player Fill",
+        "ai_fill": "AI Fill",
+        "press_space": "Press SPACE / a button to start",
         "game_over": "GAME OVER",
+        "you_win": "YOU WIN!",
+        "board_filled": "Board filled — {n} cells!",
         "press_space_restart": "Press SPACE to play again",
         "score": "Score",
+        "filled": "Filled",
         "high": "Best",
         "level_label": "Lv",
         "stage": "Stage",
@@ -214,19 +277,32 @@ TRANSLATIONS = {
         "you": "You",
         "winner": "{name} wins!",
         "draw": "Draw!",
-        "menu_hint": "1-6 select  |  C color  |  L language  |  N name  |  ESC quit",
-        "in_game_hint": "M menu  |  ESC quit",
+        "watching": "Watching AI…",
+        "menu_hint": "Click a mode or press 1-6  ·  ESC quit",
+        "ai_modes": "All-AI Modes",
+        "settings": "Settings",
+        "settings_title": "Settings",
+        "ai_menu_title": "All-AI Modes",
+        "color_btn": "Snake Color",
+        "lang_btn": "Language",
+        "name_btn": "Player Name",
+        "menu_btn": "Menu",
+        "back": "Back",
         "color_menu": "Choose snake color",
         "lang_menu": "Choose language",
         "name_menu": "Enter your name",
         "name_hint": "Type a name, ENTER to confirm",
-        "back_hint": "ESC back",
+        "back_hint": "ESC / Back",
         "level_up": "Level up!  Lv {lvl}",
         "xp": "XP",
         "english": "English",
         "tchinese": "Traditional Chinese",
         "schinese": "Simplified Chinese",
         "credits": "Creators: SpaceSquare, Claude Code   ·   Owner: SpaceSquare",
+        "ver_checking": "v{ver} · checking for updates…",
+        "ver_latest": "v{ver} · up to date",
+        "ver_outdated": "v{ver} · update available: {latest}",
+        "ver_unknown": "v{ver}",
     },
     "zh_tw": {
         "title": "貪食蛇",
@@ -237,10 +313,15 @@ TRANSLATIONS = {
         "level": "關卡模式",
         "ai_ai": "AI 對 AI",
         "ai_human": "AI 對 玩家",
-        "press_space": "按空白鍵開始",
+        "player_fill": "玩家填滿",
+        "ai_fill": "AI 填滿",
+        "press_space": "按空白鍵／按鈕開始",
         "game_over": "遊戲結束",
+        "you_win": "你贏了！",
+        "board_filled": "場地已填滿 — {n} 格！",
         "press_space_restart": "按空白鍵再玩一次",
         "score": "分數",
+        "filled": "已填滿",
         "high": "最高",
         "level_label": "等級",
         "stage": "關卡",
@@ -251,19 +332,32 @@ TRANSLATIONS = {
         "you": "你",
         "winner": "{name} 獲勝！",
         "draw": "平手！",
-        "menu_hint": "1-6 選擇  |  C 顏色  |  L 語言  |  N 名稱  |  ESC 離開",
-        "in_game_hint": "M 選單  |  ESC 離開",
+        "watching": "觀看 AI…",
+        "menu_hint": "點選模式或按 1-6  ·  ESC 離開",
+        "ai_modes": "全 AI 模式",
+        "settings": "設定",
+        "settings_title": "設定",
+        "ai_menu_title": "全 AI 模式",
+        "color_btn": "蛇身顏色",
+        "lang_btn": "語言",
+        "name_btn": "玩家名稱",
+        "menu_btn": "選單",
+        "back": "返回",
         "color_menu": "選擇蛇身顏色",
         "lang_menu": "選擇語言",
         "name_menu": "輸入你的名稱",
         "name_hint": "輸入名稱，按 ENTER 確認",
-        "back_hint": "ESC 返回",
+        "back_hint": "ESC／返回",
         "level_up": "升級！等級 {lvl}",
         "xp": "經驗",
         "english": "英文 English",
         "tchinese": "繁體中文",
         "schinese": "簡體中文",
         "credits": "創作者：SpaceSquare、Claude Code   ·   擁有者：SpaceSquare",
+        "ver_checking": "v{ver} · 檢查更新中…",
+        "ver_latest": "v{ver} · 已是最新版",
+        "ver_outdated": "v{ver} · 有可用更新：{latest}",
+        "ver_unknown": "v{ver}",
     },
     "zh_cn": {
         "title": "贪食蛇",
@@ -274,10 +368,15 @@ TRANSLATIONS = {
         "level": "关卡模式",
         "ai_ai": "AI 对 AI",
         "ai_human": "AI 对 玩家",
-        "press_space": "按空格键开始",
+        "player_fill": "玩家填满",
+        "ai_fill": "AI 填满",
+        "press_space": "按空格键／按钮开始",
         "game_over": "游戏结束",
+        "you_win": "你赢了！",
+        "board_filled": "场地已填满 — {n} 格！",
         "press_space_restart": "按空格键再玩一次",
         "score": "分数",
+        "filled": "已填满",
         "high": "最高",
         "level_label": "等级",
         "stage": "关卡",
@@ -288,19 +387,32 @@ TRANSLATIONS = {
         "you": "你",
         "winner": "{name} 获胜！",
         "draw": "平局！",
-        "menu_hint": "1-6 选择  |  C 颜色  |  L 语言  |  N 名称  |  ESC 退出",
-        "in_game_hint": "M 菜单  |  ESC 退出",
+        "watching": "观看 AI…",
+        "menu_hint": "点选模式或按 1-6  ·  ESC 退出",
+        "ai_modes": "全 AI 模式",
+        "settings": "设置",
+        "settings_title": "设置",
+        "ai_menu_title": "全 AI 模式",
+        "color_btn": "蛇身颜色",
+        "lang_btn": "语言",
+        "name_btn": "玩家名称",
+        "menu_btn": "菜单",
+        "back": "返回",
         "color_menu": "选择蛇身颜色",
         "lang_menu": "选择语言",
         "name_menu": "输入你的名称",
         "name_hint": "输入名称，按 ENTER 确认",
-        "back_hint": "ESC 返回",
+        "back_hint": "ESC／返回",
         "level_up": "升级！等级 {lvl}",
         "xp": "经验",
         "english": "英文 English",
         "tchinese": "繁体中文",
         "schinese": "简体中文",
         "credits": "创作者：SpaceSquare、Claude Code   ·   拥有者：SpaceSquare",
+        "ver_checking": "v{ver} · 检查更新中…",
+        "ver_latest": "v{ver} · 已是最新版",
+        "ver_outdated": "v{ver} · 有可用更新：{latest}",
+        "ver_unknown": "v{ver}",
     },
 }
 
@@ -359,6 +471,7 @@ class Profile:
         prof.level = max(1, int(data.get("level", 1)))
         prof.xp = max(0, int(data.get("xp", 0)))
         scores = data.get("highscores", {})
+        # New modes default to 0 for older save files (backward compatible).
         prof.highscores = {k: int(scores.get(k, 0)) for k in MODE_KEYS}
         return prof
 
@@ -380,7 +493,7 @@ def save_profile(profile: Profile) -> None:
 
 
 # ---------------------------------------------------------------------------
-# AI: Breadth-First Search with a survival fallback
+# AI helpers: BFS, survival fallback, and a Hamiltonian cycle for filling
 # ---------------------------------------------------------------------------
 def _neighbors(cell):
     x, y = cell
@@ -396,11 +509,7 @@ def _in_bounds(cell) -> bool:
 
 
 def bfs_direction(start, goal, blocked):
-    """Return the first step direction of the shortest path start -> goal.
-
-    ``blocked`` is a set of impassable cells. Returns ``None`` if no path
-    exists.
-    """
+    """Return the first step direction of the shortest path start -> goal."""
     if start == goal:
         return None
     queue = deque([start])
@@ -412,7 +521,6 @@ def bfs_direction(start, goal, blocked):
                 continue
             came_from[nxt] = (current, direction)
             if nxt == goal:
-                # Walk the path back to the cell adjacent to start.
                 node = nxt
                 while came_from[node][0] != start:
                     node = came_from[node][0]
@@ -441,8 +549,7 @@ def survival_direction(head, blocked, current_dir):
     """Pick the safe move that keeps the most open space (anti-trap)."""
     best_dir, best_score = None, -1
     for nxt, direction in _neighbors(head):
-        # Never allow a direct reversal.
-        if (direction[0] == -current_dir[0] and direction[1] == -current_dir[1]):
+        if direction[0] == -current_dir[0] and direction[1] == -current_dir[1]:
             continue
         if not _in_bounds(nxt) or nxt in blocked:
             continue
@@ -450,6 +557,37 @@ def survival_direction(head, blocked, current_dir):
         if score > best_score:
             best_dir, best_score = direction, score
     return best_dir
+
+
+def build_hamiltonian_cycle(cols, rows):
+    """Build a Hamiltonian cycle over every grid cell (requires even rows).
+
+    Returns ``(sequence, next_map)`` where ``sequence`` is the cell visit order
+    and ``next_map[cell]`` gives the following cell in the cycle. A snake that
+    starts on the cycle and always follows ``next_map`` covers the entire board
+    without ever colliding — the classic "perfect" fill.
+    """
+    seq = []
+    # Top row, left to right.
+    for x in range(cols):
+        seq.append((x, 0))
+    # Vertical serpentine through columns cols-1..1 for rows 1..rows-1,
+    # leaving column 0 as the return spine.
+    going_down = True
+    for x in range(cols - 1, 0, -1):
+        ys = range(1, rows) if going_down else range(rows - 1, 0, -1)
+        for y in ys:
+            seq.append((x, y))
+        going_down = not going_down
+    # Return spine: column 0 from the bottom back up to row 1.
+    for y in range(rows - 1, 0, -1):
+        seq.append((0, y))
+
+    nxt = {}
+    n = len(seq)
+    for i in range(n):
+        nxt[seq[i]] = seq[(i + 1) % n]
+    return seq, nxt
 
 
 # ---------------------------------------------------------------------------
@@ -467,6 +605,7 @@ class Snake:
         self.alive = True
         self.grow_pending = 0
         self.score = 0
+        self.cycle = None               # set for Hamiltonian fill AI
 
     @property
     def head(self):
@@ -487,6 +626,12 @@ class Snake:
         if direction is not None:
             self.set_direction(direction)
 
+    def plan_cycle(self):
+        """Follow the Hamiltonian cycle (authoritative; bypasses the guard)."""
+        hx, hy = self.head
+        nx, ny = self.cycle[self.head]
+        self.pending = (nx - hx, ny - hy)
+
     def step(self):
         self.direction = self.pending
         x, y = self.head
@@ -506,7 +651,7 @@ class Snake:
 # ---------------------------------------------------------------------------
 # Lightweight state machine.
 STATE_MENU, STATE_READY, STATE_PLAY, STATE_OVER = range(4)
-STATE_COLOR, STATE_LANG, STATE_NAME = range(4, 7)
+STATE_COLOR, STATE_LANG, STATE_NAME, STATE_SETTINGS, STATE_AI_MENU = range(4, 9)
 
 
 class SnakeGame:
@@ -522,20 +667,44 @@ class SnakeGame:
         self.mode = CLASSIC
         self.running = True
 
+        # Clickable buttons rebuilt every frame: list of (rect, action, arg).
+        self.buttons = []
+        self.sub_return = STATE_MENU
+
         # Per-round state (initialised in start_round).
         self.snakes = []
-        self.food = (0, 0)
+        self.food = None
         self.obstacles = set()
         self.stage = 1
         self.tick_ms = 120
         self.move_accum = 0.0
         self.result_text = ""
+        self.win = False
         self.level_up_flash = 0
         self.name_buffer = ""
 
+        # Background update check.
+        self.update_state = "checking"   # checking | latest | outdated | unknown
+        self.latest_version = ""
+        threading.Thread(target=self._check_update, daemon=True).start()
+
+    # -- Update check -------------------------------------------------------
+    def _check_update(self):
+        try:
+            tag = fetch_latest_version()
+            if not tag:
+                self.update_state = "unknown"
+                return
+            self.latest_version = tag
+            if parse_version(tag) > parse_version(APP_VERSION):
+                self.update_state = "outdated"
+            else:
+                self.update_state = "latest"
+        except Exception:
+            self.update_state = "unknown"
+
     # -- Window icon --------------------------------------------------------
     def _set_window_icon(self):
-        """Set the window/taskbar icon; ignore if the asset is missing."""
         try:
             icon = pygame.image.load(str(ICON_PATH))
             pygame.display.set_icon(icon)
@@ -545,20 +714,21 @@ class SnakeGame:
     # -- Fonts --------------------------------------------------------------
     def _load_fonts(self):
         """Load CJK-capable fonts so all three languages render."""
-        cjk = "microsoftyaheui,microsoftyahei,microsoftjhenghei,simhei,simsun,notosanscjktc,notosanscjksc,arialunicodems"
+        cjk = ("microsoftyaheui,microsoftyahei,microsoftjhenghei,simhei,"
+               "simsun,notosanscjktc,notosanscjksc,arialunicodems")
         try:
             return {
-                "big": pygame.font.SysFont(cjk, 64),
-                "mid": pygame.font.SysFont(cjk, 34),
+                "big": pygame.font.SysFont(cjk, 60),
+                "mid": pygame.font.SysFont(cjk, 32),
                 "small": pygame.font.SysFont(cjk, 22),
-                "tiny": pygame.font.SysFont(cjk, 18),
+                "tiny": pygame.font.SysFont(cjk, 17),
             }
         except Exception:  # pragma: no cover - defensive
             return {
-                "big": pygame.font.Font(None, 64),
-                "mid": pygame.font.Font(None, 34),
+                "big": pygame.font.Font(None, 60),
+                "mid": pygame.font.Font(None, 32),
                 "small": pygame.font.Font(None, 22),
-                "tiny": pygame.font.Font(None, 18),
+                "tiny": pygame.font.Font(None, 17),
             }
 
     # -- Translation helper -------------------------------------------------
@@ -571,30 +741,36 @@ class SnakeGame:
         self.obstacles = set()
         self.stage = 1
         self.result_text = ""
+        self.win = False
+        self.food = None
         color = SNAKE_COLORS[self.profile.color_index]
         mid_y = ROWS // 2
 
-        if self.mode in (BATTLE, AI_AI, AI_HUMAN):
+        if self.mode in TWO_SNAKE_MODES:
             left = Snake([(4, mid_y), (3, mid_y), (2, mid_y)], RIGHT, color)
             right = Snake(
                 [(COLS - 5, mid_y), (COLS - 4, mid_y), (COLS - 3, mid_y)],
                 LEFT, OPPONENT_COLOR,
             )
-            if self.mode == BATTLE:
-                pass  # both human
-            elif self.mode == AI_AI:
+            if self.mode == AI_AI:
                 left.is_ai = right.is_ai = True
             elif self.mode == AI_HUMAN:
-                right.is_ai = True  # right snake is the AI
+                right.is_ai = True  # right snake is the AI; left is the human
             self.snakes = [left, right]
-        else:
-            self.snakes = [
-                Snake([(4, mid_y), (3, mid_y), (2, mid_y)], RIGHT, color)
-            ]
+        elif self.mode == AI_FILL:
+            seq, nxt = build_hamiltonian_cycle(COLS, ROWS)
+            snake = Snake([seq[0]], RIGHT, color, is_ai=True)
+            snake.cycle = nxt
+            self.snakes = [snake]
+        elif self.mode == PLAYER_FILL:
+            self.snakes = [Snake([(4, mid_y), (3, mid_y), (2, mid_y)], RIGHT, color)]
+        else:  # CLASSIC, SURVIVAL, LEVEL
+            self.snakes = [Snake([(4, mid_y), (3, mid_y), (2, mid_y)], RIGHT, color)]
             if self.mode == LEVEL:
                 self._build_stage(self.stage)
 
-        self.food = self._spawn_food()
+        if self.mode not in FILL_MODES:
+            self.food = self._spawn_food()
         self.tick_ms = self._base_tick()
         self.move_accum = 0.0
         self.state = STATE_READY
@@ -605,8 +781,10 @@ class SnakeGame:
             SURVIVAL: 140,
             BATTLE: 110,
             LEVEL: 120,
-            AI_AI: 70,
             AI_HUMAN: 90,
+            PLAYER_FILL: 100,
+            AI_AI: 70,
+            AI_FILL: 26,
         }[self.mode]
 
     def _occupied(self, extra=()):
@@ -617,13 +795,14 @@ class SnakeGame:
         return cells
 
     def _spawn_food(self):
+        occupied = self._occupied()
         free = [
             (x, y)
             for x in range(COLS)
             for y in range(ROWS)
-            if (x, y) not in self._occupied()
+            if (x, y) not in occupied
         ]
-        return random.choice(free) if free else (0, 0)
+        return random.choice(free) if free else None
 
     def _build_stage(self, stage):
         """Place obstacle walls for Level mode, scaling with the stage."""
@@ -640,7 +819,6 @@ class SnakeGame:
                 if _in_bounds(cell):
                     self.obstacles.add(cell)
         random.seed()
-        # Never bury the snake's start lane.
         mid_y = ROWS // 2
         for x in range(0, 6):
             self.obstacles.discard((x, mid_y))
@@ -659,24 +837,31 @@ class SnakeGame:
         # AI planning.
         for snake in self.snakes:
             if snake.is_ai and snake.alive:
-                blocked = self._blocked_for(snake)
-                snake.plan_ai(self.food, blocked)
+                if snake.cycle is not None:
+                    snake.plan_cycle()
+                else:
+                    snake.plan_ai(self.food, self._blocked_for(snake))
+
+        # Fill modes grow every tick — the snake keeps painting the board.
+        if self.mode in FILL_MODES:
+            for snake in self.snakes:
+                if snake.alive:
+                    snake.grow(1)
 
         for snake in self.snakes:
             if snake.alive:
                 snake.step()
 
         self._resolve_collisions()
-        self._resolve_food()
+        if self.mode not in FILL_MODES:
+            self._resolve_food()
         self._check_round_end()
 
     def _blocked_for(self, snake):
-        """Cells the given AI snake must avoid (walls handled by bounds)."""
         blocked = set(self.obstacles)
         for other in self.snakes:
             if other is snake:
-                # Avoid own body except the tail tip (it will move).
-                blocked.update(other.body[:-1])
+                blocked.update(other.body[:-1])  # own tail tip will move
             else:
                 blocked.update(other.body)
         return blocked
@@ -687,15 +872,12 @@ class SnakeGame:
             if not snake.alive:
                 continue
             head = snake.head
-            # Wall.
             if not _in_bounds(head) or head in self.obstacles:
                 snake.alive = False
                 continue
-            # Self.
             if head in snake.body[1:]:
                 snake.alive = False
                 continue
-            # Other snakes' bodies.
             for other in self.snakes:
                 if other is snake:
                     continue
@@ -703,19 +885,19 @@ class SnakeGame:
                     snake.alive = False
                     break
             heads.setdefault(head, []).append(snake)
-        # Head-to-head collisions.
         for head, group in heads.items():
             if len(group) > 1:
                 for snake in group:
                     snake.alive = False
 
     def _resolve_food(self):
+        if self.food is None:
+            return
         for snake in self.snakes:
             if snake.alive and snake.head == self.food:
                 snake.grow(1)
                 snake.score += 1
                 if self.mode == SURVIVAL:
-                    # Speed ramps up the longer (and longer) you live.
                     self.tick_ms = max(45, self.tick_ms - 4)
                 if self.mode == LEVEL and snake.score % 5 == 0:
                     self.stage += 1
@@ -724,20 +906,31 @@ class SnakeGame:
                 break
 
     def _check_round_end(self):
+        total = COLS * ROWS
+        if self.mode in FILL_MODES:
+            snake = self.snakes[0]
+            if len(snake.body) >= total:
+                self.win = True
+                self.result_text = self.t("board_filled", n=len(snake.body))
+                self._end_round(len(snake.body))
+            elif not snake.alive:
+                self._end_round(len(snake.body))
+            return
+
         alive = [s for s in self.snakes if s.alive]
-        if self.mode in (CLASSIC, SURVIVAL, LEVEL):
-            if not alive:
-                self._end_round(self.snakes[0].score)
-        else:
-            # Two-snake modes end when fewer than two remain.
+        if self.mode in TWO_SNAKE_MODES:
             if len(alive) <= 1:
                 self._finish_versus(alive)
+        else:  # CLASSIC, SURVIVAL, LEVEL
+            if not alive:
+                self._end_round(self.snakes[0].score)
 
     def _finish_versus(self, alive):
         if len(alive) == 1:
             winner = alive[0]
             name = self._snake_label(self.snakes.index(winner))
             self.result_text = self.t("winner", name=name)
+            self.win = not self.snakes[0].is_ai and winner is self.snakes[0]
             score = winner.score
         else:
             self.result_text = self.t("draw")
@@ -761,16 +954,28 @@ class SnakeGame:
         save_profile(self.profile)
         self.state = STATE_OVER
 
+    def _human_snake(self):
+        """The snake a human controls in the current round, or None."""
+        if not self.snakes:
+            return None
+        first = self.snakes[0]
+        return first if not first.is_ai else None
+
     # -- Input --------------------------------------------------------------
     def handle_event(self, event):
         if event.type == pygame.QUIT:
             self.running = False
+            return
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            self._handle_click(event.pos)
             return
         if event.type != pygame.KEYDOWN:
             return
 
         dispatch = {
             STATE_MENU: self._key_menu,
+            STATE_SETTINGS: self._key_settings,
+            STATE_AI_MENU: self._key_ai_menu,
             STATE_READY: self._key_ready,
             STATE_PLAY: self._key_play,
             STATE_OVER: self._key_over,
@@ -780,27 +985,100 @@ class SnakeGame:
         }
         dispatch[self.state](event)
 
+    def _handle_click(self, pos):
+        for button in reversed(self.buttons):
+            if button["rect"].collidepoint(pos):
+                self._dispatch(button["action"], button.get("arg"))
+                return
+
+    def _dispatch(self, action, arg=None):
+        if action == "start_mode":
+            self.mode = arg
+            self.start_round()
+        elif action == "open_ai_menu":
+            self.state = STATE_AI_MENU
+        elif action == "open_settings":
+            self.state = STATE_SETTINGS
+        elif action == "open_color":
+            self._open_sub(STATE_COLOR)
+        elif action == "open_lang":
+            self._open_sub(STATE_LANG)
+        elif action == "open_name":
+            self.name_buffer = self.profile.name
+            self._open_sub(STATE_NAME)
+        elif action == "set_lang":
+            self.profile.language = arg
+            save_profile(self.profile)
+        elif action == "set_color":
+            self.profile.color_index = arg
+            save_profile(self.profile)
+        elif action == "back_menu":
+            self.state = STATE_MENU
+        elif action == "sub_back":
+            self.state = self.sub_return
+        elif action == "to_menu":
+            self.state = STATE_MENU
+        elif action == "restart":
+            self.start_round()
+        elif action == "quit":
+            self.running = False
+        elif action == "dir":
+            if self.state == STATE_READY:
+                self.state = STATE_PLAY
+            human = self._human_snake()
+            if human:
+                human.set_direction(arg)
+
+    def _open_sub(self, state):
+        self.sub_return = self.state if self.state in (STATE_MENU, STATE_SETTINGS) else STATE_MENU
+        self.state = state
+
     def _key_menu(self, event):
         key = event.key
         if pygame.K_1 <= key <= pygame.K_6:
-            self.mode = key - pygame.K_1
-            self.start_round()
+            idx = key - pygame.K_1
+            if idx < len(MAIN_MENU_MODES):
+                self.mode = MAIN_MENU_MODES[idx]
+                self.start_round()
+        elif key == pygame.K_a:
+            self.state = STATE_AI_MENU
+        elif key == pygame.K_s:
+            self.state = STATE_SETTINGS
         elif key == pygame.K_c:
-            self.state = STATE_COLOR
+            self._open_sub(STATE_COLOR)
         elif key == pygame.K_l:
-            self.state = STATE_LANG
+            self._open_sub(STATE_LANG)
         elif key == pygame.K_n:
             self.name_buffer = self.profile.name
-            self.state = STATE_NAME
+            self._open_sub(STATE_NAME)
         elif key == pygame.K_ESCAPE:
             self.running = False
+
+    def _key_settings(self, event):
+        if event.key == pygame.K_1:
+            self._open_sub(STATE_LANG)
+        elif event.key == pygame.K_2:
+            self._open_sub(STATE_COLOR)
+        elif event.key == pygame.K_3:
+            self.name_buffer = self.profile.name
+            self._open_sub(STATE_NAME)
+        elif event.key == pygame.K_ESCAPE:
+            self.state = STATE_MENU
+
+    def _key_ai_menu(self, event):
+        key = event.key
+        if pygame.K_1 <= key <= pygame.K_2:
+            idx = key - pygame.K_1
+            if idx < len(AI_MENU_MODES):
+                self.mode = AI_MENU_MODES[idx]
+                self.start_round()
+        elif key == pygame.K_ESCAPE:
+            self.state = STATE_MENU
 
     def _key_ready(self, event):
         if event.key == pygame.K_SPACE:
             self.state = STATE_PLAY
-        elif event.key == pygame.K_ESCAPE:
-            self.state = STATE_MENU
-        elif event.key == pygame.K_m:
+        elif event.key in (pygame.K_ESCAPE, pygame.K_m):
             self.state = STATE_MENU
 
     def _key_play(self, event):
@@ -811,11 +1089,11 @@ class SnakeGame:
         if key == pygame.K_ESCAPE:
             self.running = False
             return
-        # Player 1 / single-player: WASD. Player 2 / single: arrows.
-        p1 = self.snakes[0] if self.snakes else None
-        # In AI vs Human, the human is the *left* snake (index 0) on WASD.
-        if p1 and not p1.is_ai:
-            if key in (pygame.K_w,):
+        if not self.snakes:
+            return
+        p1 = self.snakes[0]
+        if not p1.is_ai:
+            if key == pygame.K_w:
                 p1.set_direction(UP)
             elif key == pygame.K_s:
                 p1.set_direction(DOWN)
@@ -823,18 +1101,16 @@ class SnakeGame:
                 p1.set_direction(LEFT)
             elif key == pygame.K_d:
                 p1.set_direction(RIGHT)
-
-        # Single-player snakes may also use arrow keys.
-        if len(self.snakes) == 1:
-            if key == pygame.K_UP:
-                p1.set_direction(UP)
-            elif key == pygame.K_DOWN:
-                p1.set_direction(DOWN)
-            elif key == pygame.K_LEFT:
-                p1.set_direction(LEFT)
-            elif key == pygame.K_RIGHT:
-                p1.set_direction(RIGHT)
-        elif self.mode == BATTLE and len(self.snakes) > 1:
+            if len(self.snakes) == 1:
+                if key == pygame.K_UP:
+                    p1.set_direction(UP)
+                elif key == pygame.K_DOWN:
+                    p1.set_direction(DOWN)
+                elif key == pygame.K_LEFT:
+                    p1.set_direction(LEFT)
+                elif key == pygame.K_RIGHT:
+                    p1.set_direction(RIGHT)
+        if self.mode == BATTLE and len(self.snakes) > 1:
             p2 = self.snakes[1]
             if key == pygame.K_UP:
                 p2.set_direction(UP)
@@ -853,7 +1129,7 @@ class SnakeGame:
 
     def _key_color(self, event):
         if event.key == pygame.K_ESCAPE:
-            self.state = STATE_MENU
+            self.state = self.sub_return
         elif pygame.K_1 <= event.key <= pygame.K_9:
             self.profile.color_index = event.key - pygame.K_1
             save_profile(self.profile)
@@ -866,7 +1142,7 @@ class SnakeGame:
 
     def _key_lang(self, event):
         if event.key == pygame.K_ESCAPE:
-            self.state = STATE_MENU
+            self.state = self.sub_return
         elif pygame.K_1 <= event.key <= pygame.K_3:
             self.profile.language = LANG_ORDER[event.key - pygame.K_1]
             save_profile(self.profile)
@@ -875,9 +1151,9 @@ class SnakeGame:
         if event.key == pygame.K_RETURN:
             self.profile.name = self.name_buffer.strip() or "Player"
             save_profile(self.profile)
-            self.state = STATE_MENU
+            self.state = self.sub_return
         elif event.key == pygame.K_ESCAPE:
-            self.state = STATE_MENU
+            self.state = self.sub_return
         elif event.key == pygame.K_BACKSPACE:
             self.name_buffer = self.name_buffer[:-1]
         else:
@@ -887,9 +1163,14 @@ class SnakeGame:
 
     # -- Rendering ----------------------------------------------------------
     def draw(self):
+        self.buttons = []
         self.screen.fill(BLACK)
         if self.state == STATE_MENU:
             self._draw_menu()
+        elif self.state == STATE_SETTINGS:
+            self._draw_settings()
+        elif self.state == STATE_AI_MENU:
+            self._draw_ai_menu()
         elif self.state == STATE_COLOR:
             self._draw_color_menu()
         elif self.state == STATE_LANG:
@@ -899,14 +1180,14 @@ class SnakeGame:
         else:
             self._draw_play_area()
             self._draw_hud()
+            self._draw_control_bar()
             if self.state == STATE_READY:
                 self._draw_center_banner(self.t("press_space"))
             elif self.state == STATE_OVER:
                 self._draw_game_over()
         pygame.display.flip()
 
-    def _text(self, key_or_str, font, color, center=None, topleft=None, **kw):
-        text = self.t(key_or_str, **kw) if key_or_str in TRANSLATIONS["en"] else key_or_str
+    def _text(self, text, font, color, center=None, topleft=None):
         surf = self.fonts[font].render(text, True, color)
         rect = surf.get_rect()
         if center:
@@ -916,38 +1197,117 @@ class SnakeGame:
         self.screen.blit(surf, rect)
         return rect
 
+    # -- Reusable button widgets -------------------------------------------
+    def _button(self, rect, label, action, arg=None, font="small",
+                selected=False, swatch=None):
+        hover = rect.collidepoint(pygame.mouse.get_pos())
+        if selected:
+            base = ACCENT
+        elif hover:
+            base = HOVER
+        else:
+            base = PANEL
+        pygame.draw.rect(self.screen, base, rect, border_radius=10)
+        pygame.draw.rect(self.screen, (70, 70, 86), rect, 2, border_radius=10)
+        txt_color = BLACK if selected else WHITE
+        cx = rect.centerx
+        if swatch is not None:
+            sw = pygame.Rect(rect.x + 14, rect.centery - 9, 18, 18)
+            pygame.draw.rect(self.screen, swatch, sw, border_radius=4)
+            cx += 14
+        self._text(label, font, txt_color, center=(cx, rect.centery))
+        self.buttons.append({"rect": rect, "action": action, "arg": arg})
+
+    def _mode_button(self, rect, mode):
+        key = MODE_KEYS[mode]
+        hover = rect.collidepoint(pygame.mouse.get_pos())
+        pygame.draw.rect(self.screen, HOVER if hover else PANEL, rect, border_radius=10)
+        pygame.draw.rect(self.screen, (70, 70, 86), rect, 2, border_radius=10)
+        self._text(self.t(key), "small", WHITE, center=(rect.centerx, rect.centery - 9))
+        best = self.profile.highscores.get(key, 0)
+        self._text(f"{self.t('high')}: {best}", "tiny", GREY,
+                   center=(rect.centerx, rect.centery + 13))
+        self.buttons.append({"rect": rect, "action": "start_mode", "arg": mode})
+
+    # -- Menus --------------------------------------------------------------
     def _draw_menu(self):
-        self._text("title", "big", ACCENT, center=(WIDTH // 2, 84))
-        self._text("subtitle", "small", GREY, center=(WIDTH // 2, 132))
-        self._text("credits", "tiny", (110, 110, 122), center=(WIDTH // 2, 162))
+        self._text(self.t("title"), "big", ACCENT, center=(WIDTH // 2, 62))
+        self._text(self.t("credits"), "tiny", (110, 110, 122), center=(WIDTH // 2, 100))
+        self._text(self._version_line(), "tiny",
+                   GOLD if self.update_state == "outdated" else GREY,
+                   center=(WIDTH // 2, 124))
 
-        start_y = 200
-        for i, key in enumerate(MODE_KEYS):
-            label = f"{i + 1}.  {self.t(key)}"
-            best = self.profile.highscores.get(key, 0)
-            row = self._text(label, "mid", WHITE, topleft=(WIDTH // 2 - 200, start_y + i * 50))
-            self._text(
-                f"{self.t('high')}: {best}", "small", GREY,
-                topleft=(WIDTH // 2 + 110, start_y + i * 50 + 8),
-            )
+        # Mode grid (2 columns x 3 rows).
+        bw, bh, gap = 290, 60, 16
+        start_x = (WIDTH - (2 * bw + gap)) // 2
+        start_y = 156
+        for i, mode in enumerate(MAIN_MENU_MODES):
+            col, row = i % 2, i // 2
+            rect = pygame.Rect(start_x + col * (bw + gap),
+                               start_y + row * (bh + gap), bw, bh)
+            self._mode_button(rect, mode)
 
-        # Profile strip.
+        # All-AI + Settings row.
+        row_y = start_y + 3 * (bh + gap) + 6
+        self._button(pygame.Rect(start_x, row_y, bw, 52),
+                     self.t("ai_modes"), "open_ai_menu")
+        self._button(pygame.Rect(start_x + bw + gap, row_y, bw, 52),
+                     self.t("settings"), "open_settings")
+
+        # Profile strip + color swatch.
         prof = self.profile
-        info = f"{prof.name}   {self.t('level_label')} {prof.level}   {self.t('xp')} {prof.xp}/{Profile.xp_for_level(prof.level)}"
-        self._text(info, "small", ACCENT, center=(WIDTH // 2, HEIGHT - 70))
-        # Color swatch.
-        swatch = pygame.Rect(WIDTH // 2 - 130, HEIGHT - 58, 18, 18)
+        info = (f"{prof.name}   {self.t('level_label')} {prof.level}   "
+                f"{self.t('xp')} {prof.xp}/{Profile.xp_for_level(prof.level)}")
+        self._text(info, "small", ACCENT, center=(WIDTH // 2, HEIGHT - 64))
+        swatch = pygame.Rect(WIDTH // 2 - 150, HEIGHT - 73, 18, 18)
         pygame.draw.rect(self.screen, SNAKE_COLORS[prof.color_index], swatch, border_radius=4)
-        self._text("menu_hint", "tiny", GREY, center=(WIDTH // 2, HEIGHT - 30))
+        self._text(self.t("menu_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 32))
+
+    def _version_line(self):
+        if self.update_state == "checking":
+            return self.t("ver_checking", ver=APP_VERSION)
+        if self.update_state == "latest":
+            return self.t("ver_latest", ver=APP_VERSION)
+        if self.update_state == "outdated":
+            return self.t("ver_outdated", ver=APP_VERSION, latest=self.latest_version)
+        return self.t("ver_unknown", ver=APP_VERSION)
+
+    def _draw_settings(self):
+        self._text(self.t("settings_title"), "big", ACCENT, center=(WIDTH // 2, 90))
+        bw, bh = 360, 60
+        x = (WIDTH - bw) // 2
+        lang_label = {"en": "English", "zh_tw": "繁體中文", "zh_cn": "简体中文"}[self.profile.language]
+        self._button(pygame.Rect(x, 180, bw, bh),
+                     f"1.  {self.t('lang_btn')}:  {lang_label}", "open_lang")
+        self._button(pygame.Rect(x, 180 + bh + 18, bw, bh),
+                     f"2.  {self.t('color_btn')}", "open_color",
+                     swatch=SNAKE_COLORS[self.profile.color_index])
+        self._button(pygame.Rect(x, 180 + 2 * (bh + 18), bw, bh),
+                     f"3.  {self.t('name_btn')}:  {self.profile.name}", "open_name")
+        self._button(pygame.Rect(x, 180 + 3 * (bh + 18) + 12, bw, 50),
+                     self.t("back"), "back_menu")
+        self._text(self.t("back_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 36))
+
+    def _draw_ai_menu(self):
+        self._text(self.t("ai_menu_title"), "big", ACCENT, center=(WIDTH // 2, 90))
+        bw, bh = 360, 64
+        x = (WIDTH - bw) // 2
+        for i, mode in enumerate(AI_MENU_MODES):
+            key = MODE_KEYS[mode]
+            best = self.profile.highscores.get(key, 0)
+            rect = pygame.Rect(x, 190 + i * (bh + 20), bw, bh)
+            self._button(rect, f"{i + 1}.  {self.t(key)}   ({self.t('high')}: {best})",
+                         "start_mode", mode)
+        self._button(pygame.Rect(x, 190 + len(AI_MENU_MODES) * (bh + 20) + 10, bw, 50),
+                     self.t("back"), "back_menu")
+        self._text(self.t("back_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 36))
 
     def _draw_color_menu(self):
-        self._text("color_menu", "mid", ACCENT, center=(WIDTH // 2, 90))
-        cols = 3
-        size = 80
-        gap = 30
+        self._text(self.t("color_menu"), "mid", ACCENT, center=(WIDTH // 2, 70))
+        cols, size, gap = 3, 80, 30
         total_w = cols * size + (cols - 1) * gap
         start_x = (WIDTH - total_w) // 2
-        start_y = 170
+        start_y = 130
         for i, color in enumerate(SNAKE_COLORS):
             cx = start_x + (i % cols) * (size + gap)
             cy = start_y + (i // cols) * (size + gap)
@@ -956,49 +1316,54 @@ class SnakeGame:
             if i == self.profile.color_index:
                 pygame.draw.rect(self.screen, WHITE, rect.inflate(10, 10), 3, border_radius=12)
             self._text(str(i + 1), "small", BLACK, center=rect.center)
-        self._text("back_hint", "tiny", GREY, center=(WIDTH // 2, HEIGHT - 40))
+            self.buttons.append({"rect": rect, "action": "set_color", "arg": i})
+        self._button(pygame.Rect(WIDTH // 2 - 90, HEIGHT - 90, 180, 50),
+                     self.t("back"), "sub_back")
+        self._text(self.t("back_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 28))
 
     def _draw_lang_menu(self):
-        self._text("lang_menu", "mid", ACCENT, center=(WIDTH // 2, 110))
+        self._text(self.t("lang_menu"), "mid", ACCENT, center=(WIDTH // 2, 90))
         options = [("english", "en"), ("tchinese", "zh_tw"), ("schinese", "zh_cn")]
+        bw, bh = 360, 60
+        x = (WIDTH - bw) // 2
         for i, (label_key, code) in enumerate(options):
-            selected = self.profile.language == code
-            color = ACCENT if selected else WHITE
-            marker = "> " if selected else "  "
-            self._text(f"{i + 1}.  {marker}{self.t(label_key)}", "mid", color,
-                       center=(WIDTH // 2, 200 + i * 60))
-        self._text("back_hint", "tiny", GREY, center=(WIDTH // 2, HEIGHT - 40))
+            rect = pygame.Rect(x, 180 + i * (bh + 18), bw, bh)
+            self._button(rect, f"{i + 1}.  {self.t(label_key)}", "set_lang", code,
+                         selected=(self.profile.language == code))
+        self._button(pygame.Rect(x, 180 + 3 * (bh + 18) + 10, bw, 50),
+                     self.t("back"), "sub_back")
+        self._text(self.t("back_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 30))
 
     def _draw_name_menu(self):
-        self._text("name_menu", "mid", ACCENT, center=(WIDTH // 2, 130))
-        box = pygame.Rect(WIDTH // 2 - 160, 200, 320, 56)
+        self._text(self.t("name_menu"), "mid", ACCENT, center=(WIDTH // 2, 110))
+        box = pygame.Rect(WIDTH // 2 - 160, 190, 320, 56)
         pygame.draw.rect(self.screen, DARK, box, border_radius=8)
         pygame.draw.rect(self.screen, ACCENT, box, 2, border_radius=8)
         cursor = "_" if (pygame.time.get_ticks() // 400) % 2 == 0 else " "
         self._text(self.name_buffer + cursor, "mid", WHITE, center=box.center)
-        self._text("name_hint", "small", GREY, center=(WIDTH // 2, 300))
-        self._text("back_hint", "tiny", GREY, center=(WIDTH // 2, HEIGHT - 40))
+        self._text(self.t("name_hint"), "small", GREY, center=(WIDTH // 2, 290))
+        self._button(pygame.Rect(WIDTH // 2 - 90, 340, 180, 50),
+                     self.t("back"), "sub_back")
+        self._text(self.t("back_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 30))
 
+    # -- Play area ----------------------------------------------------------
     def _draw_play_area(self):
-        # Grid background.
-        play_rect = pygame.Rect(0, HUD_HEIGHT, PLAY_WIDTH, PLAY_HEIGHT)
+        play_rect = pygame.Rect(0, PLAY_TOP, PLAY_WIDTH, PLAY_HEIGHT)
         pygame.draw.rect(self.screen, DARK, play_rect)
         for x in range(COLS + 1):
             px = x * CELL
-            pygame.draw.line(self.screen, GRID_LINE, (px, HUD_HEIGHT), (px, HEIGHT))
+            pygame.draw.line(self.screen, GRID_LINE, (px, PLAY_TOP), (px, CONTROL_TOP))
         for y in range(ROWS + 1):
-            py = HUD_HEIGHT + y * CELL
+            py = PLAY_TOP + y * CELL
             pygame.draw.line(self.screen, GRID_LINE, (0, py), (PLAY_WIDTH, py))
 
-        # Obstacles.
         for (ox, oy) in self.obstacles:
             self._cell_rect(ox, oy, fill=(70, 70, 86), inset=1, radius=4)
 
-        # Food.
-        fx, fy = self.food
-        self._cell_rect(fx, fy, fill=FOOD_COLOR, inset=5, radius=8)
+        if self.food is not None:
+            fx, fy = self.food
+            self._cell_rect(fx, fy, fill=FOOD_COLOR, inset=5, radius=8)
 
-        # Snakes.
         for snake in self.snakes:
             self._draw_snake(snake)
 
@@ -1015,7 +1380,7 @@ class SnakeGame:
     def _cell_rect(self, x, y, fill, inset=0, radius=0):
         rect = pygame.Rect(
             x * CELL + inset,
-            HUD_HEIGHT + y * CELL + inset,
+            PLAY_TOP + y * CELL + inset,
             CELL - inset * 2,
             CELL - inset * 2,
         )
@@ -1025,10 +1390,18 @@ class SnakeGame:
         bar = pygame.Rect(0, 0, WIDTH, HUD_HEIGHT)
         pygame.draw.rect(self.screen, BLACK, bar)
         pygame.draw.line(self.screen, GRID_LINE, (0, HUD_HEIGHT), (WIDTH, HUD_HEIGHT))
-
         self._text(self.t(MODE_KEYS[self.mode]), "small", ACCENT, topleft=(16, 10))
 
-        if self.mode in (CLASSIC, SURVIVAL, LEVEL):
+        if self.mode in FILL_MODES:
+            filled = len(self.snakes[0].body)
+            self._text(f"{self.t('filled')}: {filled} / {COLS * ROWS}", "small",
+                       WHITE, topleft=(16, 34))
+            best = self.profile.highscores[MODE_KEYS[self.mode]]
+            self._text(f"{self.t('high')}: {best}", "small", GREY, topleft=(280, 34))
+        elif self.mode in TWO_SNAKE_MODES:
+            parts = [f"{self._snake_label(i)}: {s.score}" for i, s in enumerate(self.snakes)]
+            self._text("   ".join(parts), "small", WHITE, topleft=(16, 34))
+        else:
             score = self.snakes[0].score
             self._text(f"{self.t('score')}: {score}", "small", WHITE, topleft=(16, 34))
             best = self.profile.highscores[MODE_KEYS[self.mode]]
@@ -1036,32 +1409,82 @@ class SnakeGame:
             if self.mode == LEVEL:
                 self._text(f"{self.t('stage')}: {self.stage}", "small", WHITE,
                            topleft=(320, 34))
+
+    # -- On-screen control bar (D-pad + Menu) ------------------------------
+    def _draw_control_bar(self):
+        bar = pygame.Rect(0, CONTROL_TOP, WIDTH, CONTROL_HEIGHT)
+        pygame.draw.rect(self.screen, BLACK, bar)
+        pygame.draw.line(self.screen, GRID_LINE, (0, CONTROL_TOP), (WIDTH, CONTROL_TOP))
+
+        # Menu button (left).
+        self._button(pygame.Rect(20, CONTROL_TOP + 36, 130, 44),
+                     self.t("menu_btn"), "to_menu")
+
+        # D-pad (right) — only when a human is (or will be) controlling.
+        if self.state in (STATE_READY, STATE_PLAY) and self._human_snake() is not None:
+            self._draw_dpad()
         else:
-            parts = []
-            for i, snake in enumerate(self.snakes):
-                parts.append(f"{self._snake_label(i)}: {snake.score}")
-            self._text("   ".join(parts), "small", WHITE, topleft=(16, 34))
+            self._text(self.t("watching"), "small", GREY,
+                       center=(WIDTH - 150, CONTROL_TOP + CONTROL_HEIGHT // 2))
 
-        self._text("in_game_hint", "tiny", GREY, topleft=(WIDTH - 220, 14))
+    def _draw_dpad(self):
+        cx = WIDTH - 110
+        cy = CONTROL_TOP + CONTROL_HEIGHT // 2
+        b = 40
+        layout = {
+            UP: (cx, cy - (b + 4)),
+            DOWN: (cx, cy + (b + 4)),
+            LEFT: (cx - (b + 4), cy),
+            RIGHT: (cx + (b + 4), cy),
+        }
+        for direction, (bx, by) in layout.items():
+            rect = pygame.Rect(0, 0, b, b)
+            rect.center = (bx, by)
+            hover = rect.collidepoint(pygame.mouse.get_pos())
+            pygame.draw.rect(self.screen, HOVER if hover else PANEL, rect, border_radius=8)
+            pygame.draw.rect(self.screen, (70, 70, 86), rect, 2, border_radius=8)
+            self._draw_arrow(rect, direction)
+            self.buttons.append({"rect": rect, "action": "dir", "arg": direction})
 
+    def _draw_arrow(self, rect, direction):
+        cx, cy = rect.center
+        s = 9
+        if direction == UP:
+            pts = [(cx, cy - s), (cx - s, cy + s), (cx + s, cy + s)]
+        elif direction == DOWN:
+            pts = [(cx, cy + s), (cx - s, cy - s), (cx + s, cy - s)]
+        elif direction == LEFT:
+            pts = [(cx - s, cy), (cx + s, cy - s), (cx + s, cy + s)]
+        else:  # RIGHT
+            pts = [(cx + s, cy), (cx - s, cy - s), (cx - s, cy + s)]
+        pygame.draw.polygon(self.screen, WHITE, pts)
+
+    # -- Overlays -----------------------------------------------------------
     def _draw_center_banner(self, text):
         overlay = pygame.Surface((WIDTH, PLAY_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 150))
-        self.screen.blit(overlay, (0, HUD_HEIGHT))
-        self._text(text, "mid", WHITE, center=(WIDTH // 2, HEIGHT // 2))
+        self.screen.blit(overlay, (0, PLAY_TOP))
+        self._text(text, "mid", WHITE, center=(WIDTH // 2, PLAY_TOP + PLAY_HEIGHT // 2))
 
     def _draw_game_over(self):
         overlay = pygame.Surface((WIDTH, PLAY_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-        self.screen.blit(overlay, (0, HUD_HEIGHT))
-        cy = HUD_HEIGHT + PLAY_HEIGHT // 2
-        self._text("game_over", "big", RED, center=(WIDTH // 2, cy - 70))
+        overlay.fill((0, 0, 0, 185))
+        self.screen.blit(overlay, (0, PLAY_TOP))
+        cy = PLAY_TOP + PLAY_HEIGHT // 2
+        if self.win:
+            self._text(self.t("you_win"), "big", GOLD, center=(WIDTH // 2, cy - 80))
+        else:
+            self._text(self.t("game_over"), "big", RED, center=(WIDTH // 2, cy - 80))
         if self.result_text:
-            self._text(self.result_text, "mid", WHITE, center=(WIDTH // 2, cy - 10))
-        self._text("press_space_restart", "small", GREY, center=(WIDTH // 2, cy + 50))
+            self._text(self.result_text, "mid", WHITE, center=(WIDTH // 2, cy - 18))
         if self.level_up_flash > 0:
             self._text(self.t("level_up", lvl=self.profile.level), "small", ACCENT,
-                       center=(WIDTH // 2, cy + 90))
+                       center=(WIDTH // 2, cy + 18))
+        # Buttons (also bound to SPACE / M).
+        self._button(pygame.Rect(WIDTH // 2 - 200, cy + 50, 190, 50),
+                     self.t("press_space_restart"), "restart", font="tiny")
+        self._button(pygame.Rect(WIDTH // 2 + 10, cy + 50, 190, 50),
+                     self.t("menu_btn"), "to_menu", font="small")
 
     # -- Main loop ----------------------------------------------------------
     def run(self):

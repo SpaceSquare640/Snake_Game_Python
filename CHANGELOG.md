@@ -10,6 +10,29 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## English
 
+### [1.1.0] — 2026-06-10
+
+#### Added
+- **Two new modes:**
+  - **Player Fill** — every step grows the snake; fill the whole board without
+    crashing (a true endgame puzzle).
+  - **AI Fill** *(All-AI menu)* — a perfect **Hamiltonian-cycle** AI traces and
+    fills every cell of the board.
+- **All-AI menu** — `AI vs AI` moves here and is joined by `AI Fill`.
+- **Settings menu** — Language, Snake Color, and Player Name in one place.
+- **Full on-screen GUI** — clickable menus and buttons throughout.
+- **On-screen D-pad** — four up/down/left/right buttons for mouse/touch play.
+- **Automatic update check** — on launch the game checks GitHub Releases and
+  shows whether you are on the latest version.
+
+#### Changed
+- Reorganised modes into a **Main menu** (Classic, Survival, Battle, Level,
+  AI vs Human, Player Fill) and an **All-AI menu** (AI vs AI, AI Fill).
+- Taller window with a dedicated bottom control bar.
+
+#### Fixed
+- Save file now writes next to the executable in packaged builds.
+
 ### [1.0.0] — 2026-06-10
 
 First public release.
@@ -44,6 +67,27 @@ First public release.
 
 ## 繁體中文
 
+### [1.1.0] — 2026-06-10
+
+#### 新增
+- **兩種新模式：**
+  - **玩家填滿** — 每走一步蛇就變長；在不撞死的前提下填滿整個場地（真正的終局謎題）。
+  - **AI 填滿**（全 AI 選單）— 採用完美的 **漢米頓迴圈（Hamiltonian cycle）** AI，
+    巡遍並填滿場地的每一格。
+- **全 AI 選單** — `AI 對 AI` 移至此處，並新增 `AI 填滿`。
+- **設定選單** — 將語言、蛇身顏色、玩家名稱集中於一處。
+- **完整的畫面 GUI** — 全程可用滑鼠點選的選單與按鈕。
+- **畫面方向鍵（D-pad）** — 上下左右四顆按鈕，支援滑鼠／觸控操作。
+- **自動檢查更新** — 啟動時會向 GitHub Releases 檢查，並顯示是否為最新版本。
+
+#### 變更
+- 將模式重新整理為 **主選單**（經典、生存、對戰、關卡、AI 對 玩家、玩家填滿）
+  與 **全 AI 選單**（AI 對 AI、AI 填滿）。
+- 視窗加高，並新增專屬的底部控制列。
+
+#### 修正
+- 封裝版本的存檔現在會寫入執行檔旁的目錄。
+
 ### [1.0.0] — 2026-06-10
 
 首次公開發行。
@@ -70,6 +114,27 @@ First public release.
 
 ## 简体中文
 
+### [1.1.0] — 2026-06-10
+
+#### 新增
+- **两种新模式：**
+  - **玩家填满** — 每走一步蛇就变长；在不撞死的前提下填满整个场地（真正的终局谜题）。
+  - **AI 填满**（全 AI 菜单）— 采用完美的 **哈密顿回路（Hamiltonian cycle）** AI，
+    遍历并填满场地的每一格。
+- **全 AI 菜单** — `AI 对 AI` 移至此处，并新增 `AI 填满`。
+- **设置菜单** — 将语言、蛇身颜色、玩家名称集中于一处。
+- **完整的画面 GUI** — 全程可用鼠标点选的菜单与按钮。
+- **画面方向键（D-pad）** — 上下左右四个按钮，支持鼠标／触控操作。
+- **自动检查更新** — 启动时会向 GitHub Releases 检查，并显示是否为最新版本。
+
+#### 变更
+- 将模式重新整理为 **主菜单**（经典、生存、对战、关卡、AI 对 玩家、玩家填满）
+  与 **全 AI 菜单**（AI 对 AI、AI 填满）。
+- 窗口加高，并新增专属的底部控制栏。
+
+#### 修复
+- 打包版本的存档现在会写入可执行文件旁的目录。
+
 ### [1.0.0] — 2026-06-10
 
 首次公开发行。
@@ -92,4 +157,5 @@ First public release.
 - **自定义许可协议**，附带署名要求（创作者：SpaceSquare、Claude Code；拥有者：
   SpaceSquare），并提供三种语言版本。
 
-[1.0.0]: https://github.com/<OWNER>/Snake_Game_Python/releases/tag/v1.0.0
+[1.1.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.1.0
+[1.0.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.0.0
