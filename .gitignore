@@ -1,0 +1,19 @@
+# This folder (Source_Code) is the repository root: its contents become the
+# main branch. The packaged build lives in the sibling Packaged_Program/
+# folder, outside this repo, and is published via GitHub Releases.
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Game save data (player-specific, regenerated at runtime)
+snake_save.json
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

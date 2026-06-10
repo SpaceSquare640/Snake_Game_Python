@@ -1,0 +1,7 @@
+# Runtime dependency for Snake_Game_Python.
+# The game's bootstrap installs this automatically on first run, but you can
+# also install it manually:  pip install -r requirements.txt
+#
+# On Python 3.13+ install pygame-ce instead (a drop-in replacement):
+#     pip install pygame-ce
+pygame>=2.1
