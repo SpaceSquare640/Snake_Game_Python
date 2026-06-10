@@ -6,7 +6,7 @@ profiles, and an auto-setup bootstrap that installs everything it needs.
 
 **Languages:** [English](#english) · [繁體中文](#繁體中文) · [简体中文](#简体中文)
 
-> **Version 1.2.0** — see the full [CHANGELOG](CHANGELOG.md) · new here? read the [Guidebook](Guidebook.md).
+> **Version 1.3.0** — see the full [CHANGELOG](CHANGELOG.md) · new here? read the [Guidebook](Guidebook.md).
 
 > ▶ **Play in your browser (no install):** **https://spacesquare640.github.io/Snake_Game_Python/**
 > — a full HTML5 port lives on the [`HTML_Version`](https://github.com/SpaceSquare640/Snake_Game_Python/tree/HTML_Version) branch.
@@ -65,6 +65,7 @@ Released separately  ──►  attached to each GitHub Release:
     - **AI Fill** — a perfect Hamiltonian-cycle AI fills every cell of the board
 - **Full on-screen GUI** — clickable menus, a **Settings** menu, an **All-AI** menu, and an on-screen **D-pad** (up/down/left/right buttons) for mouse/touch play
 - **Themes, sound & more** — four **visual themes** (Dark, Neon, Retro CRT, Minimal), **sound effects + music** toggle, a **leaderboard** (top-5 per mode), **key remapping**, and an optional FPS counter — all in Settings
+- **Replays** — every run is recorded with a seeded RNG + input log and can be replayed exactly; revisit the last 8 runs from the **Replays** page
 - **Automatic update check** — on launch the game checks GitHub Releases and tells you if a newer version exists
 - **3 Languages** with an in-game language menu: English (default), Traditional Chinese, Simplified Chinese
 - **Player profiles** — username, persistent player level (earned via XP/score)
@@ -149,6 +150,7 @@ the snake can never trap itself and steadily fills the entire field.
   **方向鍵（D-pad）**（上下左右按鈕），支援滑鼠／觸控操作
 - **主題、音效與更多** — 四種 **佈景主題**（深色、霓虹、復古 CRT、極簡）、**音效＋音樂**
   開關、**排行榜**（各模式前 5 名）、**按鍵重新對應**，以及可選的 FPS 顯示，皆於設定中
+- **重播** — 每一局都以固定種子亂數＋輸入紀錄錄製，可完整重播；於 **重播** 頁面回顧最近 8 局
 - **自動檢查更新** — 啟動時向 GitHub Releases 檢查，並提示是否有新版本
 - **3 種語言**，內建語言選單：英文（預設）、繁體中文、簡體中文
 - **玩家檔案** — 玩家名稱、可累積的玩家等級（依分數/經驗值成長）
@@ -231,6 +233,7 @@ python Snake_Game_Python.py
   **方向键（D-pad）**（上下左右按钮），支持鼠标／触控操作
 - **主题、音效与更多** — 四种 **界面主题**（深色、霓虹、复古 CRT、极简）、**音效＋音乐**
   开关、**排行榜**（各模式前 5 名）、**按键重新映射**，以及可选的 FPS 显示，均在设置中
+- **重播** — 每一局都以固定种子随机数＋输入记录录制，可完整重播；在 **重播** 页面回顾最近 8 局
 - **自动检查更新** — 启动时向 GitHub Releases 检查，并提示是否有新版本
 - **3 种语言**，内置语言菜单：英文（默认）、繁体中文、简体中文
 - **玩家档案** — 玩家名称、可累积的玩家等级（依分数/经验值成长）

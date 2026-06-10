@@ -13,6 +13,7 @@ Features
 * Four visual themes (Dark, Neon, Retro CRT, Minimal).
 * Procedural sound effects and a background-music toggle (no audio files).
 * Per-mode leaderboard (top 5) and remappable movement keys.
+* Deterministic replay system (seeded RNG + input log) with a Replays page.
 * Three languages: English (default), Traditional Chinese, Simplified Chinese.
 * Player profiles with a persistent, XP-based level.
 * Nine selectable snake colors.
@@ -122,6 +123,7 @@ bootstrap()
 import json
 import random
 import threading
+import time
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -131,7 +133,7 @@ import pygame
 # ---------------------------------------------------------------------------
 # Version / update check
 # ---------------------------------------------------------------------------
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 GITHUB_REPO = "SpaceSquare640/Snake_Game_Python"
 
 
@@ -363,6 +365,15 @@ TRANSLATIONS = {
         "dir_up": "Up", "dir_down": "Down", "dir_left": "Left", "dir_right": "Right",
         "leaderboard_btn": "Leaderboard", "leaderboard_title": "Leaderboard",
         "empty_board": "No scores yet", "fps_label": "FPS counter",
+        "replays_btn": "Replays", "replays_title": "Replays",
+        "watch_replay": "Watch replay", "replay_again": "Replay again",
+        "replay_label": "REPLAY", "no_replays": "No replays yet",
+        "tutorial_btn": "▶  How to play (Tutorial)", "tut_title": "Tutorial",
+        "tut_move": "Use WASD / Arrows / the D-pad to move",
+        "tut_eat": "Now eat the apples —  {n}  to go",
+        "tut_avoid": "Avoid walls, obstacles, and yourself!",
+        "tut_done": "You're ready!  Pick a mode from the menu.",
+        "tut_continue": "Press SPACE to continue", "tut_skip": "ESC / M to skip",
         "ver_checking": "v{ver} · checking for updates…",
         "ver_latest": "v{ver} · up to date",
         "ver_outdated": "v{ver} · update available: {latest}",
@@ -429,6 +440,15 @@ TRANSLATIONS = {
         "dir_up": "上", "dir_down": "下", "dir_left": "左", "dir_right": "右",
         "leaderboard_btn": "排行榜", "leaderboard_title": "排行榜",
         "empty_board": "尚無紀錄", "fps_label": "FPS 顯示",
+        "replays_btn": "重播", "replays_title": "重播紀錄",
+        "watch_replay": "觀看重播", "replay_again": "再看一次",
+        "replay_label": "重播中", "no_replays": "尚無重播",
+        "tutorial_btn": "▶  新手教學", "tut_title": "新手教學",
+        "tut_move": "用 WASD／方向鍵／畫面方向鍵移動",
+        "tut_eat": "現在吃掉蘋果 —  還剩 {n}  顆",
+        "tut_avoid": "避開牆壁、障礙物與自己！",
+        "tut_done": "你準備好了！從選單選擇一個模式吧。",
+        "tut_continue": "按空白鍵繼續", "tut_skip": "ESC／M 跳過",
         "ver_checking": "v{ver} · 檢查更新中…",
         "ver_latest": "v{ver} · 已是最新版",
         "ver_outdated": "v{ver} · 有可用更新：{latest}",
@@ -495,6 +515,15 @@ TRANSLATIONS = {
         "dir_up": "上", "dir_down": "下", "dir_left": "左", "dir_right": "右",
         "leaderboard_btn": "排行榜", "leaderboard_title": "排行榜",
         "empty_board": "暂无记录", "fps_label": "FPS 显示",
+        "replays_btn": "重播", "replays_title": "重播记录",
+        "watch_replay": "观看重播", "replay_again": "再看一次",
+        "replay_label": "重播中", "no_replays": "暂无重播",
+        "tutorial_btn": "▶  新手教学", "tut_title": "新手教学",
+        "tut_move": "用 WASD／方向键／画面方向键移动",
+        "tut_eat": "现在吃掉苹果 —  还剩 {n}  颗",
+        "tut_avoid": "避开墙壁、障碍物与自己！",
+        "tut_done": "你准备好了！从菜单选择一个模式吧。",
+        "tut_continue": "按空格键继续", "tut_skip": "ESC／M 跳过",
         "ver_checking": "v{ver} · 检查更新中…",
         "ver_latest": "v{ver} · 已是最新版",
         "ver_outdated": "v{ver} · 有可用更新：{latest}",
@@ -506,6 +535,8 @@ LANG_ORDER = ["en", "zh_tw", "zh_cn"]
 
 # Leaderboard: how many top scores to keep per mode.
 LEADERBOARD_SIZE = 5
+# Replays: how many recorded runs to keep.
+REPLAY_LIMIT = 8
 
 # Remappable movement keys (Player 1 / single player). Stored in the profile
 # as integer keycodes so they survive JSON round-trips.
@@ -546,6 +577,8 @@ class Profile:
     keymap: dict = field(default_factory=lambda: dict(DEFAULT_KEYMAP))
     # leaderboards[mode] = list of {"name", "score"} sorted high -> low
     leaderboards: dict = field(default_factory=lambda: {k: [] for k in MODE_KEYS})
+    # replays = list of recorded runs (newest first), each a dict (see Game)
+    replays: list = field(default_factory=list)
 
     # XP required to reach the *next* level grows linearly.
     @staticmethod
@@ -585,6 +618,7 @@ class Profile:
             "show_fps": self.show_fps,
             "keymap": self.keymap,
             "leaderboards": self.leaderboards,
+            "replays": self.replays,
         }
 
     @classmethod
@@ -619,6 +653,8 @@ class Profile:
                 except (KeyError, TypeError, ValueError):
                     continue
             prof.leaderboards[k] = clean
+        replays = data.get("replays", [])
+        prof.replays = replays[:REPLAY_LIMIT] if isinstance(replays, list) else []
         return prof
 
 
@@ -905,6 +941,7 @@ class SoundManager:
 STATE_MENU, STATE_READY, STATE_PLAY, STATE_OVER = range(4)
 STATE_COLOR, STATE_LANG, STATE_NAME, STATE_SETTINGS, STATE_AI_MENU = range(4, 9)
 (STATE_THEME, STATE_CONTROLS, STATE_REBIND, STATE_LEADERBOARD, STATE_AUDIO) = range(9, 14)
+STATE_REPLAYS, STATE_TUTORIAL = range(14, 16)
 
 
 class SnakeGame:
@@ -939,6 +976,15 @@ class SnakeGame:
         self.win = False
         self.level_up_flash = 0
         self.name_buffer = ""
+
+        # Replay state.
+        self.rng = random.Random()       # per-round seeded RNG (deterministic)
+        self.tick_count = 0
+        self.recording = None            # inputs being recorded this round
+        self.replaying = False
+        self.replay_by_tick = {}         # tick -> [(snake_idx, dir), ...]
+        self.last_replay = None          # the most recent finished recording
+        self.current_replay = None       # the recording currently being watched
 
         # Background update check.
         self.update_state = "checking"   # checking | latest | outdated | unknown
@@ -996,13 +1042,41 @@ class SnakeGame:
         return text.format(**kwargs) if kwargs else text
 
     # -- Round setup --------------------------------------------------------
-    def start_round(self):
+    def start_round(self, seed=None):
+        """Begin a fresh, recorded round (deterministic from a random seed)."""
+        seed = random.randrange(1 << 30) if seed is None else seed
+        self.rng = random.Random(seed)
+        self.replaying = False
+        self.replay_by_tick = {}
+        self.tick_count = 0
+        self.recording = {
+            "mode": self.mode, "seed": seed,
+            "color_index": self.profile.color_index, "inputs": [],
+        }
+        self._setup_round(SNAKE_COLORS[self.profile.color_index])
+        self.state = STATE_READY
+
+    def start_replay(self, rec):
+        """Replay a recorded run deterministically (no live input)."""
+        self.mode = rec["mode"]
+        self.current_replay = rec
+        self.rng = random.Random(rec["seed"])
+        self.replaying = True
+        self.recording = None
+        self.tick_count = 0
+        self.replay_by_tick = {}
+        for inp in rec.get("inputs", []):
+            self.replay_by_tick.setdefault(inp["t"], []).append((inp["s"], tuple(inp["d"])))
+        color = SNAKE_COLORS[rec.get("color_index", 0) % len(SNAKE_COLORS)]
+        self._setup_round(color)
+        self.state = STATE_PLAY  # replays auto-play
+
+    def _setup_round(self, color):
         self.obstacles = set()
         self.stage = 1
         self.result_text = ""
         self.win = False
         self.food = None
-        color = SNAKE_COLORS[self.profile.color_index]
         mid_y = ROWS // 2
 
         if self.mode in TWO_SNAKE_MODES:
@@ -1032,7 +1106,6 @@ class SnakeGame:
             self.food = self._spawn_food()
         self.tick_ms = self._base_tick()
         self.move_accum = 0.0
-        self.state = STATE_READY
 
     def _base_tick(self):
         return {
@@ -1061,23 +1134,22 @@ class SnakeGame:
             for y in range(ROWS)
             if (x, y) not in occupied
         ]
-        return random.choice(free) if free else None
+        return self.rng.choice(free) if free else None
 
     def _build_stage(self, stage):
-        """Place obstacle walls for Level mode, scaling with the stage."""
+        """Place obstacle walls for Level mode (deterministic per stage)."""
         self.obstacles = set()
-        random.seed(stage * 7919)
+        rng = random.Random(stage * 7919)  # local: reproducible, no global state
         wall_count = min(3 + stage, 9)
         for _ in range(wall_count):
-            horizontal = random.random() < 0.5
-            length = random.randint(3, 6)
-            x = random.randint(2, COLS - 7)
-            y = random.randint(2, ROWS - 3)
+            horizontal = rng.random() < 0.5
+            length = rng.randint(3, 6)
+            x = rng.randint(2, COLS - 7)
+            y = rng.randint(2, ROWS - 3)
             for i in range(length):
                 cell = (x + i, y) if horizontal else (x, y + i)
                 if _in_bounds(cell):
                     self.obstacles.add(cell)
-        random.seed()
         mid_y = ROWS // 2
         for x in range(0, 6):
             self.obstacles.discard((x, mid_y))
@@ -1093,6 +1165,12 @@ class SnakeGame:
         self._advance()
 
     def _advance(self):
+        # Replay: feed the inputs recorded for this tick before anything moves.
+        if self.replaying:
+            for snake_idx, direction in self.replay_by_tick.get(self.tick_count, ()):
+                if snake_idx < len(self.snakes):
+                    self.snakes[snake_idx].set_direction(direction)
+
         # AI planning.
         for snake in self.snakes:
             if snake.is_ai and snake.alive:
@@ -1117,7 +1195,16 @@ class SnakeGame:
             self.sound.play("crash")
         if self.mode not in FILL_MODES:
             self._resolve_food()
+        self.tick_count += 1
         self._check_round_end()
+
+    def _record_input(self, snake_idx, direction):
+        """Apply a human direction change and record it for replays."""
+        if snake_idx < len(self.snakes):
+            self.snakes[snake_idx].set_direction(direction)
+        if self.recording is not None and not self.replaying:
+            self.recording["inputs"].append(
+                {"t": self.tick_count, "s": snake_idx, "d": list(direction)})
 
     def _blocked_for(self, snake):
         blocked = set(self.obstacles)
@@ -1210,14 +1297,33 @@ class SnakeGame:
         return self.t("player")
 
     def _end_round(self, score):
+        if self.win:
+            self.sound.play("win")
+        # Replays don't affect scores/leaderboards/saved replays.
+        if self.replaying:
+            self.state = STATE_OVER
+            return
         mode_key = MODE_KEYS[self.mode]
         levelled = self.profile.add_score(mode_key, score)
         if levelled:
             self.level_up_flash = 1800  # ms
-        if self.win:
-            self.sound.play("win")
+        self._save_recording(score)
         save_profile(self.profile)
         self.state = STATE_OVER
+
+    def _save_recording(self, score):
+        """Finalize the round's recording and keep it for replay."""
+        if not self.recording:
+            return
+        rec = self.recording
+        rec["score"] = int(score)
+        rec["win"] = bool(self.win)
+        rec["ticks"] = self.tick_count
+        rec["name"] = self.profile.name
+        rec["ts"] = int(time.time())
+        self.last_replay = rec
+        self.profile.replays.insert(0, rec)
+        del self.profile.replays[REPLAY_LIMIT:]
 
     def _human_snake(self):
         """The snake a human controls in the current round, or None."""
@@ -1258,6 +1364,7 @@ class SnakeGame:
             STATE_AUDIO: self._key_audio,
             STATE_CONTROLS: self._key_controls,
             STATE_LEADERBOARD: self._key_simple_back,
+            STATE_REPLAYS: self._key_simple_back,
             STATE_READY: self._key_ready,
             STATE_PLAY: self._key_play,
             STATE_OVER: self._key_over,
@@ -1265,7 +1372,8 @@ class SnakeGame:
             STATE_LANG: self._key_lang,
             STATE_NAME: self._key_name,
         }
-        dispatch[self.state](event)
+        if self.state in dispatch:
+            dispatch[self.state](event)
 
     def _button_at(self, pos):
         for button in reversed(self.buttons):
@@ -1304,6 +1412,20 @@ class SnakeGame:
         if action == "reset_keys":
             self.profile.keymap = dict(DEFAULT_KEYMAP)
             save_profile(self.profile); return
+        if action == "open_replays":
+            self._open_sub(STATE_REPLAYS); return
+        if action == "watch_replay":  # the run just played
+            if self.last_replay:
+                self.start_replay(self.last_replay)
+            return
+        if action == "replay_current":  # re-run the replay being watched
+            if self.current_replay:
+                self.start_replay(self.current_replay)
+            return
+        if action == "play_replay":   # by index in profile.replays
+            if 0 <= arg < len(self.profile.replays):
+                self.start_replay(self.profile.replays[arg])
+            return
         if action == "start_mode":
             self.mode = arg
             self.start_round()
@@ -1335,11 +1457,12 @@ class SnakeGame:
         elif action == "quit":
             self.running = False
         elif action == "dir":
+            if self.replaying:
+                return
             if self.state == STATE_READY:
                 self.state = STATE_PLAY
-            human = self._human_snake()
-            if human:
-                human.set_direction(arg)
+            if self._human_snake():
+                self._record_input(0, arg)
 
     def _open_sub(self, state):
         self.sub_return = self.state if self.state in (STATE_MENU, STATE_SETTINGS) else STATE_MENU
@@ -1447,6 +1570,10 @@ class SnakeGame:
 
     def _key_play(self, event):
         key = event.key
+        if self.replaying:
+            if key in (pygame.K_m, pygame.K_ESCAPE):
+                self.state = STATE_MENU
+            return  # no live control during playback
         if key == pygame.K_m:
             self.state = STATE_MENU
             return
@@ -1460,32 +1587,26 @@ class SnakeGame:
             # Player 1 / single player: the remappable keymap.
             for d in MOVE_DIRS:
                 if key == self.profile.keymap[d]:
-                    p1.set_direction(DIR_VECTORS[d])
+                    self._record_input(0, DIR_VECTORS[d])
                     break
             # Arrow keys remain a fixed convenience in single-player.
             if len(self.snakes) == 1:
-                if key == pygame.K_UP:
-                    p1.set_direction(UP)
-                elif key == pygame.K_DOWN:
-                    p1.set_direction(DOWN)
-                elif key == pygame.K_LEFT:
-                    p1.set_direction(LEFT)
-                elif key == pygame.K_RIGHT:
-                    p1.set_direction(RIGHT)
+                arrows = {pygame.K_UP: UP, pygame.K_DOWN: DOWN,
+                          pygame.K_LEFT: LEFT, pygame.K_RIGHT: RIGHT}
+                if key in arrows:
+                    self._record_input(0, arrows[key])
         if self.mode == BATTLE and len(self.snakes) > 1:
-            p2 = self.snakes[1]
-            if key == pygame.K_UP:
-                p2.set_direction(UP)
-            elif key == pygame.K_DOWN:
-                p2.set_direction(DOWN)
-            elif key == pygame.K_LEFT:
-                p2.set_direction(LEFT)
-            elif key == pygame.K_RIGHT:
-                p2.set_direction(RIGHT)
+            arrows = {pygame.K_UP: UP, pygame.K_DOWN: DOWN,
+                      pygame.K_LEFT: LEFT, pygame.K_RIGHT: RIGHT}
+            if key in arrows:
+                self._record_input(1, arrows[key])
 
     def _key_over(self, event):
         if event.key == pygame.K_SPACE:
-            self.start_round()
+            if self.replaying and self.current_replay:
+                self.start_replay(self.current_replay)
+            else:
+                self.start_round()
         elif event.key in (pygame.K_m, pygame.K_ESCAPE):
             self.state = STATE_MENU
 
@@ -1539,6 +1660,7 @@ class SnakeGame:
             STATE_CONTROLS: self._draw_controls_menu,
             STATE_REBIND: self._draw_rebind,
             STATE_LEADERBOARD: self._draw_leaderboard,
+            STATE_REPLAYS: self._draw_replays,
         }
         if self.state in screens:
             screens[self.state]()
@@ -1658,15 +1780,19 @@ class SnakeGame:
                                start_y + row * (bh + gap), bw, bh)
             self._mode_button(rect, mode, badge=i + 1)
 
-        # Three-wide row: All-AI · Leaderboard · Settings (with key hints).
+        # Four-wide utility row: All-AI · Leaderboard · Replays · Settings.
         row_y = start_y + 3 * (bh + gap) + 28
-        tw = (WIDTH - 2 * margin - 2 * gap) // 3
-        self._button(pygame.Rect(start_x, row_y, tw, srow_h),
-                     self.t("ai_modes"), "open_ai_menu", font="tiny", badge="A")
-        self._button(pygame.Rect(start_x + tw + gap, row_y, tw, srow_h),
-                     self.t("leaderboard_btn"), "open_leaderboard", font="tiny")
-        self._button(pygame.Rect(start_x + 2 * (tw + gap), row_y, tw, srow_h),
-                     self.t("settings"), "open_settings", font="tiny", badge="S")
+        ug = 14
+        tw = (WIDTH - 2 * margin - 3 * ug) // 4
+        util = [
+            (self.t("ai_modes"), "open_ai_menu", "A"),
+            (self.t("leaderboard_btn"), "open_leaderboard", None),
+            (self.t("replays_btn"), "open_replays", None),
+            (self.t("settings"), "open_settings", "S"),
+        ]
+        for i, (label, action, badge) in enumerate(util):
+            self._button(pygame.Rect(start_x + i * (tw + ug), row_y, tw, srow_h),
+                         label, action, font="tiny", badge=badge)
 
         # A thin separator divides the menu from the profile card.
         card_top = HEIGHT - 100
@@ -1885,6 +2011,23 @@ class SnakeGame:
                      self.t("back"), "sub_back")
         self._text(self.t("back_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 30))
 
+    def _draw_replays(self):
+        self._text(self.t("replays_title"), "big", ACCENT, center=(WIDTH // 2, 70))
+        replays = self.profile.replays
+        if not replays:
+            self._text(self.t("no_replays"), "small", DIM, center=(WIDTH // 2, HEIGHT // 2))
+        bw, bh = 472, 52
+        x = (WIDTH - bw) // 2
+        for i, rec in enumerate(replays[:REPLAY_LIMIT]):
+            mode_name = self.t(MODE_KEYS[rec.get("mode", 0)])
+            tag = self.t("you_win") if rec.get("win") else ""
+            label = f"{mode_name}   ·   {self.t('score')} {rec.get('score', 0)}   {tag}"
+            self._button(pygame.Rect(x, 128 + i * (bh + 10), bw, bh),
+                         label, "play_replay", i, font="small")
+        self._button(pygame.Rect(WIDTH // 2 - 90, HEIGHT - 70, 180, 46),
+                     self.t("back"), "sub_back")
+        self._text(self.t("back_hint"), "tiny", GREY, center=(WIDTH // 2, HEIGHT - 24))
+
     # -- Play area ----------------------------------------------------------
     def _draw_play_area(self):
         play_rect = pygame.Rect(0, PLAY_TOP, PLAY_WIDTH, PLAY_HEIGHT)
@@ -1930,6 +2073,8 @@ class SnakeGame:
         pygame.draw.rect(self.screen, BLACK, bar)
         pygame.draw.line(self.screen, GRID_LINE, (0, HUD_HEIGHT), (WIDTH, HUD_HEIGHT))
         self._text(self.t(MODE_KEYS[self.mode]), "small", ACCENT, topleft=(16, 10))
+        if self.replaying:  # REPLAY badge, top-right of the HUD
+            self._text(self.t("replay_label"), "small", GOLD, topleft=(WIDTH - 110, 10))
 
         if self.mode in FILL_MODES:
             filled = len(self.snakes[0].body)
@@ -1959,11 +2104,13 @@ class SnakeGame:
         self._button(pygame.Rect(20, CONTROL_TOP + 36, 130, 44),
                      self.t("menu_btn"), "to_menu")
 
-        # D-pad (right) — only when a human is (or will be) controlling.
-        if self.state in (STATE_READY, STATE_PLAY) and self._human_snake() is not None:
+        # D-pad (right) — only when a human is actively controlling (not replay).
+        if (self.state in (STATE_READY, STATE_PLAY) and not self.replaying
+                and self._human_snake() is not None):
             self._draw_dpad()
         else:
-            self._text(self.t("watching"), "small", GREY,
+            note = self.t("replay_label") if self.replaying else self.t("watching")
+            self._text(note, "small", GOLD if self.replaying else GREY,
                        center=(WIDTH - 150, CONTROL_TOP + CONTROL_HEIGHT // 2))
 
     def _draw_dpad(self):
@@ -2023,11 +2170,19 @@ class SnakeGame:
         if self.level_up_flash > 0:
             self._text(self.t("level_up", lvl=self.profile.level), "small", ACCENT,
                        center=(WIDTH // 2, cy + 18))
-        # Buttons (also bound to SPACE / M).
+        # Primary buttons (also bound to SPACE / M).
+        if self.replaying:
+            primary = (self.t("replay_again"), "replay_current")
+        else:
+            primary = (self.t("press_space_restart"), "restart")
         self._button(pygame.Rect(WIDTH // 2 - 200, cy + 50, 190, 50),
-                     self.t("press_space_restart"), "restart", font="tiny")
+                     primary[0], primary[1], font="tiny")
         self._button(pygame.Rect(WIDTH // 2 + 10, cy + 50, 190, 50),
                      self.t("menu_btn"), "to_menu", font="small")
+        # A "Watch replay" button for the run just played (live runs only).
+        if not self.replaying and self.last_replay is not None:
+            self._button(pygame.Rect(WIDTH // 2 - 95, cy + 112, 190, 46),
+                         self.t("watch_replay"), "watch_replay", font="tiny")
 
     # -- Main loop ----------------------------------------------------------
     def run(self):

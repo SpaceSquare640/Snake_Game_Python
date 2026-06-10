@@ -10,6 +10,15 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## English
 
+### [1.3.0] — 2026-06-11
+
+#### Added
+- **Replay system** — every round is recorded and can be replayed exactly.
+  Runs are reproduced from a **seeded RNG + input log**, so the playback is
+  deterministic (works for human *and* AI modes). Watch the run you just played
+  from the Game Over screen, or revisit the last 8 runs from the new **Replays**
+  page on the main menu.
+
 ### [1.2.0] — 2026-06-10
 
 #### Added
@@ -95,6 +104,13 @@ First public release.
 
 ## 繁體中文
 
+### [1.3.0] — 2026-06-11
+
+#### 新增
+- **重播系統** — 每一局都會被記錄，並可完整重播。透過 **固定種子亂數＋輸入紀錄**
+  重現，因此播放是確定性的（人類與 AI 模式皆適用）。可於遊戲結束畫面觀看剛剛那局，
+  或從主選單新增的 **重播** 頁面回顧最近 8 局。
+
 ### [1.2.0] — 2026-06-10
 
 #### 新增
@@ -166,6 +182,13 @@ First public release.
 
 ## 简体中文
 
+### [1.3.0] — 2026-06-11
+
+#### 新增
+- **重播系统** — 每一局都会被记录，并可完整重播。通过 **固定种子随机数＋输入记录**
+  重现，因此播放是确定性的（人类与 AI 模式皆适用）。可在游戏结束画面观看刚刚那局，
+  或从主菜单新增的 **重播** 页面回顾最近 8 局。
+
 ### [1.2.0] — 2026-06-10
 
 #### 新增
@@ -233,6 +256,7 @@ First public release.
 - **自定义许可协议**，附带署名要求（创作者：SpaceSquare、Claude Code；拥有者：
   SpaceSquare），并提供三种语言版本。
 
+[1.3.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.3.0
 [1.2.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.2.0
 [1.1.1]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.1.1
 [1.1.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.1.0
