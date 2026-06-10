@@ -34,6 +34,9 @@ The same game as the desktop edition:
   (main menu) and AI vs AI, AI Fill (All-AI menu).
 - **Clickable GUI** with a Settings menu, an All-AI menu, and an on-screen
   **D-pad** for mouse/touch play.
+- **Themes** (Dark / Neon / Retro CRT / Minimal), **sound effects + music**
+  (WebAudio), a **leaderboard** (top-5 per mode), **key remapping**, and an
+  optional FPS counter.
 - **3 languages** — English, Traditional Chinese, Simplified Chinese.
 - **BFS AI** with a survival fallback, plus a perfect **Hamiltonian-cycle**
   fill AI.
@@ -76,6 +79,8 @@ python -m http.server 8099
   以及 AI 對 AI、AI 填滿（全 AI 選單）。
 - **可點選的 GUI**，含設定選單、全 AI 選單，以及畫面上的 **方向鍵（D-pad）**，
   支援滑鼠／觸控。
+- **佈景主題**（深色／霓虹／復古 CRT／極簡）、**音效＋音樂**（WebAudio）、**排行榜**
+  （各模式前 5 名）、**按鍵重新對應**，以及可選的 FPS 顯示。
 - **3 種語言** — 英文、繁體中文、簡體中文。
 - **BFS 人工智慧** 與生存後備策略，以及完美的 **漢米頓迴圈** 填滿 AI。
 - **進度儲存**（名稱、等級、經驗、顏色、最高分）使用 `localStorage`。
@@ -117,6 +122,8 @@ python -m http.server 8099
   以及 AI 对 AI、AI 填满（全 AI 菜单）。
 - **可点选的 GUI**，含设置菜单、全 AI 菜单，以及画面上的 **方向键（D-pad）**，
   支持鼠标／触控。
+- **界面主题**（深色／霓虹／复古 CRT／极简）、**音效＋音乐**（WebAudio）、**排行榜**
+  （各模式前 5 名）、**按键重新映射**，以及可选的 FPS 显示。
 - **3 种语言** — 英文、繁体中文、简体中文。
 - **BFS 人工智能** 与生存后备策略，以及完美的 **哈密顿回路** 填满 AI。
 - **进度保存**（名称、等级、经验、颜色、最高分）使用 `localStorage`。
