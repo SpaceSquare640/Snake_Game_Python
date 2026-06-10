@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 const GITHUB_REPO = "SpaceSquare640/Snake_Game_Python";
 
 const CELL = 28;
@@ -85,12 +85,25 @@ const FILL_MODES = new Set([PLAYER_FILL, AI_FILL]);
 const STATE_MENU = 0, STATE_READY = 1, STATE_PLAY = 2, STATE_OVER = 3,
       STATE_COLOR = 4, STATE_LANG = 5, STATE_NAME = 6, STATE_SETTINGS = 7,
       STATE_AI_MENU = 8, STATE_THEME = 9, STATE_CONTROLS = 10, STATE_REBIND = 11,
-      STATE_LEADERBOARD = 12, STATE_AUDIO = 13;
+      STATE_LEADERBOARD = 12, STATE_AUDIO = 13, STATE_REPLAYS = 14,
+      STATE_TUTORIAL = 15;
 
 const LANG_ORDER = ["en", "zh_tw", "zh_cn"];
 
-// Leaderboard size + remappable movement keys (stored as lowercase e.key).
+// Seedable PRNG so runs are deterministic (and therefore replayable).
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Leaderboard size + replay cap + remappable movement keys (lowercase e.key).
 const LEADERBOARD_SIZE = 5;
+const REPLAY_LIMIT = 8;
 const MOVE_DIRS = ["up", "down", "left", "right"];
 const DIR_VECTORS = { up: UP, down: DOWN, left: LEFT, right: RIGHT };
 const DEFAULT_KEYMAP = { up: "w", down: "s", left: "a", right: "d" };
@@ -134,6 +147,14 @@ const T = {
     dir_up: "Up", dir_down: "Down", dir_left: "Left", dir_right: "Right",
     leaderboard_btn: "Leaderboard", leaderboard_title: "Leaderboard",
     empty_board: "No scores yet", fps_label: "FPS counter",
+    replays_btn: "Replays", replays_title: "Replays", watch_replay: "Watch replay",
+    replay_again: "Replay again", replay_label: "REPLAY", no_replays: "No replays yet",
+    tutorial_btn: "How to play (Tutorial)", tut_title: "Tutorial",
+    tut_move: "Use WASD / Arrows / the D-pad to move",
+    tut_eat: "Now eat the apples —  {n}  to go",
+    tut_avoid: "Avoid walls, obstacles, and yourself!",
+    tut_done: "You're ready!  Pick a mode from the menu.",
+    tut_continue: "Press SPACE to continue", tut_skip: "ESC / M to skip",
   },
   zh_tw: {
     title: "貪食蛇", classic: "經典模式", survival: "生存模式", battle: "對戰模式",
@@ -163,6 +184,14 @@ const T = {
     dir_up: "上", dir_down: "下", dir_left: "左", dir_right: "右",
     leaderboard_btn: "排行榜", leaderboard_title: "排行榜",
     empty_board: "尚無紀錄", fps_label: "FPS 顯示",
+    replays_btn: "重播", replays_title: "重播紀錄", watch_replay: "觀看重播",
+    replay_again: "再看一次", replay_label: "重播中", no_replays: "尚無重播",
+    tutorial_btn: "新手教學", tut_title: "新手教學",
+    tut_move: "用 WASD／方向鍵／畫面方向鍵移動",
+    tut_eat: "現在吃掉蘋果 —  還剩 {n}  顆",
+    tut_avoid: "避開牆壁、障礙物與自己！",
+    tut_done: "你準備好了！從選單選擇一個模式吧。",
+    tut_continue: "按空白鍵繼續", tut_skip: "ESC／M 跳過",
   },
   zh_cn: {
     title: "贪食蛇", classic: "经典模式", survival: "生存模式", battle: "对战模式",
@@ -192,6 +221,14 @@ const T = {
     dir_up: "上", dir_down: "下", dir_left: "左", dir_right: "右",
     leaderboard_btn: "排行榜", leaderboard_title: "排行榜",
     empty_board: "暂无记录", fps_label: "FPS 显示",
+    replays_btn: "重播", replays_title: "重播记录", watch_replay: "观看重播",
+    replay_again: "再看一次", replay_label: "重播中", no_replays: "暂无重播",
+    tutorial_btn: "新手教学", tut_title: "新手教学",
+    tut_move: "用 WASD／方向键／画面方向键移动",
+    tut_eat: "现在吃掉苹果 —  还剩 {n}  颗",
+    tut_avoid: "避开墙壁、障碍物与自己！",
+    tut_done: "你准备好了！从菜单选择一个模式吧。",
+    tut_continue: "按空格键继续", tut_skip: "ESC／M 跳过",
   },
 };
 
@@ -206,7 +243,7 @@ function defaultProfile() {
   return {
     name: "Player", language: "en", colorIndex: 0, level: 1, xp: 0, highscores,
     theme: "dark", sound: true, music: false, showFps: false,
-    keymap: Object.assign({}, DEFAULT_KEYMAP), leaderboards,
+    keymap: Object.assign({}, DEFAULT_KEYMAP), leaderboards, replays: [],
   };
 }
 
@@ -238,6 +275,7 @@ function loadProfile() {
         name: String(e.name || "?").slice(0, 14), score: e.score | 0,
       }));
     }
+    p.replays = Array.isArray(data.replays) ? data.replays.slice(0, REPLAY_LIMIT) : [];
     return p;
   } catch (e) {
     return defaultProfile();
@@ -465,6 +503,14 @@ class Game {
     this.subReturn = STATE_MENU;
     this.mouseDown = null;   // [action, arg] armed on mouse-down
     this.rebindDir = null;
+    // Replay state.
+    this.rng = Math.random;
+    this.tickCount = 0;
+    this.recording = null;
+    this.replaying = false;
+    this.replayByTick = {};
+    this.lastReplay = null;
+    this.currentReplay = null;
 
     this.buttons = [];
     this.pointer = { x: -1, y: -1 };
@@ -511,13 +557,39 @@ class Game {
   }
 
   // -- Round setup ------------------------------------------------------
-  startRound() {
+  startRound(seed) {
+    if (seed === undefined) seed = (Math.random() * 0x40000000) >>> 0;
+    this.rng = mulberry32(seed);
+    this.replaying = false;
+    this.replayByTick = {};
+    this.tickCount = 0;
+    this.recording = { mode: this.mode, seed: seed,
+      colorIndex: this.profile.colorIndex, inputs: [] };
+    this._setupRound(SNAKE_COLORS[this.profile.colorIndex]);
+    this.state = STATE_READY;
+  }
+
+  startReplay(rec) {
+    this.mode = rec.mode;
+    this.currentReplay = rec;
+    this.rng = mulberry32(rec.seed >>> 0);
+    this.replaying = true;
+    this.recording = null;
+    this.tickCount = 0;
+    this.replayByTick = {};
+    for (const inp of (rec.inputs || [])) {
+      (this.replayByTick[inp.t] = this.replayByTick[inp.t] || []).push([inp.s, inp.d]);
+    }
+    this._setupRound(SNAKE_COLORS[(rec.colorIndex || 0) % SNAKE_COLORS.length]);
+    this.state = STATE_PLAY; // replays auto-play
+  }
+
+  _setupRound(color) {
     this.obstacles = new Set();
     this.stage = 1;
     this.resultText = "";
     this.win = false;
     this.food = null;
-    const color = SNAKE_COLORS[this.profile.colorIndex];
     const midY = Math.floor(ROWS / 2);
 
     if (TWO_SNAKE_MODES.has(this.mode)) {
@@ -542,7 +614,6 @@ class Game {
     if (!FILL_MODES.has(this.mode)) this.food = this.spawnFood();
     this.tickMs = this.baseTick();
     this.moveAccum = 0;
-    this.state = STATE_READY;
   }
 
   baseTick() {
@@ -564,7 +635,7 @@ class Game {
     for (let x = 0; x < COLS; x++)
       for (let y = 0; y < ROWS; y++)
         if (!occ.has(key(x, y))) free.push([x, y]);
-    return free.length ? free[(Math.random() * free.length) | 0] : null;
+    return free.length ? free[(this.rng() * free.length) | 0] : null;
   }
 
   buildStage(stage) {
@@ -597,6 +668,11 @@ class Game {
   }
 
   advance() {
+    if (this.replaying) {
+      for (const [idx, dir] of (this.replayByTick[this.tickCount] || [])) {
+        if (idx < this.snakes.length) this.snakes[idx].setDirection(dir);
+      }
+    }
     for (const s of this.snakes) {
       if (s.isAi && s.alive) {
         if (s.cycle) s.planCycle();
@@ -611,7 +687,15 @@ class Game {
     this.resolveCollisions();
     if (this.snakes.filter((s) => s.alive).length < aliveBefore) this.sound.play("crash");
     if (!FILL_MODES.has(this.mode)) this.resolveFood();
+    this.tickCount += 1;
     this.checkRoundEnd();
+  }
+
+  recordInput(idx, dir) {
+    if (idx < this.snakes.length) this.snakes[idx].setDirection(dir);
+    if (this.recording && !this.replaying) {
+      this.recording.inputs.push({ t: this.tickCount, s: idx, d: dir });
+    }
   }
 
   blockedFor(snake) {
@@ -707,11 +791,26 @@ class Game {
   }
 
   endRound(score) {
+    if (this.win) this.sound.play("win");
+    if (this.replaying) { this.state = STATE_OVER; return; }
     const levelled = addScore(this.profile, MODE_KEYS[this.mode], score);
     if (levelled) this.levelUpFlash = 1800;
-    if (this.win) this.sound.play("win");
+    this._saveRecording(score);
     saveProfile(this.profile);
     this.state = STATE_OVER;
+  }
+
+  _saveRecording(score) {
+    if (!this.recording) return;
+    const rec = this.recording;
+    rec.score = score | 0;
+    rec.win = !!this.win;
+    rec.ticks = this.tickCount;
+    rec.name = this.profile.name;
+    rec.ts = Date.now();
+    this.lastReplay = rec;
+    this.profile.replays.unshift(rec);
+    this.profile.replays.length = Math.min(this.profile.replays.length, REPLAY_LIMIT);
   }
 
   humanSnake() {
@@ -791,13 +890,20 @@ class Game {
       case "toggle_fps": this.profile.showFps = !this.profile.showFps; saveProfile(this.profile); break;
       case "rebind": this.rebindDir = arg; this.state = STATE_REBIND; break;
       case "reset_keys": this.profile.keymap = Object.assign({}, DEFAULT_KEYMAP); saveProfile(this.profile); break;
+      case "open_replays": this.openSub(STATE_REPLAYS); break;
+      case "watch_replay": if (this.lastReplay) this.startReplay(this.lastReplay); break;
+      case "replay_current": if (this.currentReplay) this.startReplay(this.currentReplay); break;
+      case "play_replay":
+        if (arg >= 0 && arg < this.profile.replays.length) this.startReplay(this.profile.replays[arg]);
+        break;
       case "back_menu": this.state = STATE_MENU; break;
       case "sub_back": this.state = this.subReturn; break;
       case "to_menu": this.state = STATE_MENU; break;
       case "restart": this.startRound(); break;
       case "dir":
+        if (this.replaying) break;
         if (this.state === STATE_READY) this.state = STATE_PLAY;
-        { const h = this.humanSnake(); if (h) h.setDirection(arg); }
+        if (this.humanSnake()) this.recordInput(0, arg);
         break;
     }
   }
@@ -829,6 +935,7 @@ class Game {
       [STATE_AUDIO]: () => this.keyAudio(k),
       [STATE_CONTROLS]: () => this.keyControls(k),
       [STATE_LEADERBOARD]: () => { if (k === "Escape" || k === "m") this.state = this.subReturn; },
+      [STATE_REPLAYS]: () => { if (k === "Escape" || k === "m") this.state = this.subReturn; },
       [STATE_READY]: () => this.keyReady(k),
       [STATE_PLAY]: () => this.keyPlay(k),
       [STATE_OVER]: () => this.keyOver(k),
@@ -904,36 +1011,32 @@ class Game {
   }
 
   keyPlay(k) {
-    if (k === "m" || k === "M") { this.state = STATE_MENU; return; }
-    if (k === "Escape") { this.state = STATE_MENU; return; }
+    if (this.replaying) {
+      if (k === "m" || k === "M" || k === "Escape") this.state = STATE_MENU;
+      return; // no live control during playback
+    }
+    if (k === "m" || k === "M" || k === "Escape") { this.state = STATE_MENU; return; }
     if (!this.snakes.length) return;
     const p1 = this.snakes[0];
+    const arrows = { ArrowUp: UP, ArrowDown: DOWN, ArrowLeft: LEFT, ArrowRight: RIGHT };
     if (!p1.isAi) {
       // Player 1 / single player: the remappable keymap (matched lowercase).
       const lk = k.length === 1 ? k.toLowerCase() : k;
       for (const d of MOVE_DIRS) {
-        if (lk === this.profile.keymap[d]) { p1.setDirection(DIR_VECTORS[d]); break; }
+        if (lk === this.profile.keymap[d]) { this.recordInput(0, DIR_VECTORS[d]); break; }
       }
-      // Arrow keys remain a fixed convenience in single-player.
-      if (this.snakes.length === 1) {
-        if (k === "ArrowUp") p1.setDirection(UP);
-        else if (k === "ArrowDown") p1.setDirection(DOWN);
-        else if (k === "ArrowLeft") p1.setDirection(LEFT);
-        else if (k === "ArrowRight") p1.setDirection(RIGHT);
-      }
+      if (this.snakes.length === 1 && arrows[k]) this.recordInput(0, arrows[k]);
     }
-    if (this.mode === BATTLE && this.snakes.length > 1) {
-      const p2 = this.snakes[1];
-      if (k === "ArrowUp") p2.setDirection(UP);
-      else if (k === "ArrowDown") p2.setDirection(DOWN);
-      else if (k === "ArrowLeft") p2.setDirection(LEFT);
-      else if (k === "ArrowRight") p2.setDirection(RIGHT);
+    if (this.mode === BATTLE && this.snakes.length > 1 && arrows[k]) {
+      this.recordInput(1, arrows[k]);
     }
   }
 
   keyOver(k) {
-    if (k === " ") this.startRound();
-    else if (k === "m" || k === "M" || k === "Escape") this.state = STATE_MENU;
+    if (k === " ") {
+      if (this.replaying && this.currentReplay) this.startReplay(this.currentReplay);
+      else this.startRound();
+    } else if (k === "m" || k === "M" || k === "Escape") this.state = STATE_MENU;
   }
 
   keyColor(k) {
@@ -976,6 +1079,7 @@ class Game {
       case STATE_CONTROLS: this.drawControlsMenu(); break;
       case STATE_REBIND: this.drawRebind(); break;
       case STATE_LEADERBOARD: this.drawLeaderboard(); break;
+      case STATE_REPLAYS: this.drawReplays(); break;
       default:
         this.drawPlayArea();
         this.drawHud();
@@ -1080,10 +1184,18 @@ class Game {
     });
 
     const rowY = startY + 3 * (bh + gap) + 28;
-    const tw = (WIDTH - 2 * margin - 2 * gap) / 3;
-    this.button({ x: startX, y: rowY, w: tw, h: srowH, label: this.t("ai_modes"), action: "open_ai_menu", font: 17, badge: "A" });
-    this.button({ x: startX + tw + gap, y: rowY, w: tw, h: srowH, label: this.t("leaderboard_btn"), action: "open_leaderboard", font: 17 });
-    this.button({ x: startX + 2 * (tw + gap), y: rowY, w: tw, h: srowH, label: this.t("settings"), action: "open_settings", font: 17, badge: "S" });
+    const ug = 14;
+    const tw = (WIDTH - 2 * margin - 3 * ug) / 4;
+    const util = [
+      [this.t("ai_modes"), "open_ai_menu", "A"],
+      [this.t("leaderboard_btn"), "open_leaderboard", null],
+      [this.t("replays_btn"), "open_replays", null],
+      [this.t("settings"), "open_settings", "S"],
+    ];
+    util.forEach((u, i) => {
+      this.button({ x: startX + i * (tw + ug), y: rowY, w: tw, h: srowH,
+        label: u[0], action: u[1], font: 16, badge: u[2] });
+    });
 
     const cardTop = HEIGHT - 100, sepY = cardTop - 22;
     const ctx = this.ctx;
@@ -1234,6 +1346,21 @@ class Game {
     this.text(this.t("back_hint"), 15, C.grey, WIDTH / 2, HEIGHT - 28);
   }
 
+  drawReplays() {
+    this.text(this.t("replays_title"), 60, C.accent, WIDTH / 2, 70, "center", true);
+    const replays = this.profile.replays;
+    if (!replays.length) this.text(this.t("no_replays"), 22, C.dim, WIDTH / 2, HEIGHT / 2);
+    const bw = 472, bh = 52, x = (WIDTH - bw) / 2;
+    replays.slice(0, REPLAY_LIMIT).forEach((rec, i) => {
+      const modeName = this.t(MODE_KEYS[rec.mode || 0]);
+      const tag = rec.win ? this.t("you_win") : "";
+      const label = modeName + "   ·   " + this.t("score") + " " + (rec.score || 0) + "   " + tag;
+      this.button({ x, y: 128 + i * (bh + 10), w: bw, h: bh, label, action: "play_replay", arg: i, font: 22 });
+    });
+    this.button({ x: WIDTH / 2 - 90, y: HEIGHT - 70, w: 180, h: 46, label: this.t("back"), action: "sub_back" });
+    this.text(this.t("back_hint"), 15, C.grey, WIDTH / 2, HEIGHT - 24);
+  }
+
   drawAiMenu() {
     this.text(this.t("ai_menu_title"), 60, C.accent, WIDTH / 2, 90, "center", true);
     const bw = 360, bh = 64, x = (WIDTH - bw) / 2;
@@ -1347,6 +1474,7 @@ class Game {
     ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, HUD_HEIGHT); ctx.lineTo(WIDTH, HUD_HEIGHT); ctx.stroke();
     this.text(this.t(MODE_KEYS[this.mode]), 22, C.accent, 16, 22, "left");
+    if (this.replaying) this.text(this.t("replay_label"), 22, C.gold, WIDTH - 110, 22, "left");
 
     if (FILL_MODES.has(this.mode)) {
       this.text(this.t("filled") + ": " + this.snakes[0].body.length + " / " + (COLS * ROWS), 22, C.white, 16, 44, "left");
@@ -1370,10 +1498,11 @@ class Game {
 
     this.button({ x: 20, y: CONTROL_TOP + 36, w: 130, h: 44, label: this.t("menu_btn"), action: "to_menu" });
 
-    if ((this.state === STATE_READY || this.state === STATE_PLAY) && this.humanSnake()) {
+    if ((this.state === STATE_READY || this.state === STATE_PLAY) && !this.replaying && this.humanSnake()) {
       this.drawDpad();
     } else {
-      this.text(this.t("watching"), 22, C.grey, WIDTH - 150, CONTROL_TOP + CONTROL_HEIGHT / 2);
+      const note = this.replaying ? this.t("replay_label") : this.t("watching");
+      this.text(note, 22, this.replaying ? C.gold : C.grey, WIDTH - 150, CONTROL_TOP + CONTROL_HEIGHT / 2);
     }
   }
 
@@ -1428,8 +1557,14 @@ class Game {
     else this.text(this.t("game_over"), 60, C.red, WIDTH / 2, cy - 80, "center", true);
     if (this.resultText) this.text(this.resultText, 32, C.white, WIDTH / 2, cy - 18);
     if (this.levelUpFlash > 0) this.text(this.t("level_up", { lvl: this.profile.level }), 22, C.accent, WIDTH / 2, cy + 18);
-    this.button({ x: WIDTH / 2 - 200, y: cy + 50, w: 190, h: 50, label: this.t("press_space_restart"), action: "restart" });
+    const primary = this.replaying
+      ? [this.t("replay_again"), "replay_current"]
+      : [this.t("press_space_restart"), "restart"];
+    this.button({ x: WIDTH / 2 - 200, y: cy + 50, w: 190, h: 50, label: primary[0], action: primary[1], font: 17 });
     this.button({ x: WIDTH / 2 + 10, y: cy + 50, w: 190, h: 50, label: this.t("menu_btn"), action: "to_menu" });
+    if (!this.replaying && this.lastReplay) {
+      this.button({ x: WIDTH / 2 - 95, y: cy + 112, w: 190, h: 46, label: this.t("watch_replay"), action: "watch_replay", font: 17 });
+    }
   }
 }
 

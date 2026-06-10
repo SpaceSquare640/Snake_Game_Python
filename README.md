@@ -35,8 +35,8 @@ The same game as the desktop edition:
 - **Clickable GUI** with a Settings menu, an All-AI menu, and an on-screen
   **D-pad** for mouse/touch play.
 - **Themes** (Dark / Neon / Retro CRT / Minimal), **sound effects + music**
-  (WebAudio), a **leaderboard** (top-5 per mode), **key remapping**, and an
-  optional FPS counter.
+  (WebAudio), a **leaderboard** (top-5 per mode), **key remapping**, an
+  optional FPS counter, and a **replay system** (deterministic, seeded).
 - **3 languages** — English, Traditional Chinese, Simplified Chinese.
 - **BFS AI** with a survival fallback, plus a perfect **Hamiltonian-cycle**
   fill AI.
