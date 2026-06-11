@@ -12,7 +12,12 @@ from .version import APP_VERSION, fetch_latest_version, parse_version
 from .profile import load_profile, save_profile
 from .audio import SoundManager
 from .entities import Snake
-from .ai import build_hamiltonian_cycle, _in_bounds
+from .ai import (
+    build_hamiltonian_cycle, _in_bounds,
+    bfs_direction, survival_direction,
+    greedy_direction, astar_direction, anneal_direction,
+    drift_direction, minimax_direction,
+)
 from .render import RenderMixin
 
 
@@ -166,14 +171,43 @@ class SnakeGame(RenderMixin):
                 left.is_ai = right.is_ai = True
             elif self.mode == AI_HUMAN:
                 right.is_ai = True  # right snake is the AI; left is the human
+            elif self.mode == AI_MINIMAX:
+                right.is_ai = True  # human on the left, Minimax hunter on the right
+                right.brain = "minimax"
+            elif self.mode == AI_MINIMAX_DUEL:
+                left.is_ai = right.is_ai = True
+                left.brain = "minimax"   # the hunter boxes the rival in
+                right.brain = "survive"  # the runner just maximises its space
+            elif self.mode == AI_FOOD_RUSH:
+                left.is_ai = right.is_ai = True
+                left.brain = right.brain = "astar"  # both race for the same apple
             self.snakes = [left, right]
         elif self.mode == AI_FILL:
             seq, nxt = build_hamiltonian_cycle(COLS, ROWS)
             snake = Snake([seq[0]], RIGHT, color, is_ai=True)
             snake.cycle = nxt
             self.snakes = [snake]
+        elif self.mode == AI_COOP_FILL:
+            # Two AI snakes split the board: each follows a perfect-fill cycle
+            # over its own half, so together they paint every cell, collision-free.
+            half = COLS // 2
+            seq, nxt = build_hamiltonian_cycle(half, ROWS)
+            left = Snake([seq[0]], RIGHT, color, is_ai=True)
+            left.cycle = nxt
+            right_cycle = {(x + half, y): (nx + half, ny)
+                           for (x, y), (nx, ny) in nxt.items()}
+            right = Snake([(seq[0][0] + half, seq[0][1])], RIGHT,
+                          OPPONENT_COLOR, is_ai=True)
+            right.cycle = right_cycle
+            self.snakes = [left, right]
         elif self.mode == PLAYER_FILL:
             self.snakes = [Snake([(4, mid_y), (3, mid_y), (2, mid_y)], RIGHT, color)]
+        elif self.mode in SOLO_AI_MODES:
+            brain = {AI_ASTAR: "astar", AI_ANNEAL: "anneal",
+                     AI_GREEDY: "greedy", AI_DRIFT: "drift"}[self.mode]
+            snake = Snake([(4, mid_y), (3, mid_y), (2, mid_y)], RIGHT, color, is_ai=True)
+            snake.brain = brain
+            self.snakes = [snake]
         else:  # CLASSIC, SURVIVAL, LEVEL
             self.snakes = [Snake([(4, mid_y), (3, mid_y), (2, mid_y)], RIGHT, color)]
             if self.mode == LEVEL:
@@ -194,6 +228,14 @@ class SnakeGame(RenderMixin):
             PLAYER_FILL: 100,
             AI_AI: 70,
             AI_FILL: 26,
+            AI_ASTAR: 75,
+            AI_ANNEAL: 80,
+            AI_GREEDY: 70,
+            AI_DRIFT: 90,
+            AI_MINIMAX: 100,
+            AI_MINIMAX_DUEL: 85,
+            AI_COOP_FILL: 32,
+            AI_FOOD_RUSH: 75,
         }[self.mode]
 
     def _occupied(self, extra=()):
@@ -305,10 +347,7 @@ class SnakeGame(RenderMixin):
         # AI planning.
         for snake in self.snakes:
             if snake.is_ai and snake.alive:
-                if snake.cycle is not None:
-                    snake.plan_cycle()
-                else:
-                    snake.plan_ai(self.food, self._blocked_for(snake))
+                self._plan_ai_snake(snake)
 
         # Fill modes grow every tick — the snake keeps painting the board.
         if self.mode in FILL_MODES:
@@ -339,12 +378,51 @@ class SnakeGame(RenderMixin):
 
     def _blocked_for(self, snake):
         blocked = set(self.obstacles)
+        # In fill modes the snake grows every tick, so no tail tip frees up.
+        own_recedes = self.mode not in FILL_MODES
         for other in self.snakes:
-            if other is snake:
+            if other is snake and own_recedes:
                 blocked.update(other.body[:-1])  # own tail tip will move
             else:
                 blocked.update(other.body)
         return blocked
+
+    def _opponent_of(self, snake):
+        """The other live snake (for adversarial planning), or None."""
+        for other in self.snakes:
+            if other is not snake and other.alive:
+                return other
+        return None
+
+    def _plan_ai_snake(self, snake):
+        """Steer one AI snake using whichever brain it was assigned."""
+        if snake.cycle is not None:          # AI Fill: follow the perfect cycle
+            snake.plan_cycle()
+            return
+        blocked = self._blocked_for(snake)
+        head, cur, length = snake.head, snake.direction, len(snake.body)
+        brain = snake.brain
+        if brain == "greedy":
+            direction = greedy_direction(head, self.food, blocked, cur)
+        elif brain == "astar":
+            direction = astar_direction(head, self.food, blocked, cur, length)
+        elif brain == "anneal":
+            direction = anneal_direction(head, self.food, blocked, cur, self.rng, length)
+        elif brain == "drift":
+            direction = drift_direction(head, blocked, cur, self.rng)
+        elif brain == "survive":
+            direction = survival_direction(head, blocked, cur)
+        elif brain == "minimax":
+            opp = self._opponent_of(snake)
+            direction = minimax_direction(snake, opp, self.food, self.obstacles) if opp else None
+            if direction is None:
+                direction = survival_direction(head, blocked, cur)
+        else:  # "bfs" — shortest path, anti-trap fallback
+            direction = bfs_direction(head, self.food, blocked)
+            if direction is None:
+                direction = survival_direction(head, blocked, cur)
+        if direction is not None:
+            snake.set_direction(direction)
 
     def _resolve_collisions(self):
         heads = {}
@@ -389,22 +467,34 @@ class SnakeGame(RenderMixin):
     def _check_round_end(self):
         total = COLS * ROWS
         if self.mode in FILL_MODES:
-            snake = self.snakes[0]
-            if len(snake.body) >= total:
+            # Single- or co-op fill: count every painted cell across all snakes.
+            filled = sum(len(s.body) for s in self.snakes)
+            if filled >= total:
                 self.win = True
-                self.result_text = self.t("board_filled", n=len(snake.body))
-                self._end_round(len(snake.body))
-            elif not snake.alive:
-                self._end_round(len(snake.body))
+                self.result_text = self.t("board_filled", n=filled)
+                self._end_round(filled)
+            elif not any(s.alive for s in self.snakes):
+                self._end_round(filled)
             return
 
         alive = [s for s in self.snakes if s.alive]
-        if self.mode in TWO_SNAKE_MODES:
+        if self.mode == AI_FOOD_RUSH:
+            if any(s.score >= RUSH_TARGET for s in self.snakes) or len(alive) <= 1:
+                self._finish_rush()
+        elif self.mode in TWO_SNAKE_MODES:
             if len(alive) <= 1:
                 self._finish_versus(alive)
         else:  # CLASSIC, SURVIVAL, LEVEL
             if not alive:
                 self._end_round(self.snakes[0].score)
+
+    def _finish_rush(self):
+        """Food Rush ends when an AI hits the target or only one is left."""
+        best = max(self.snakes, key=lambda s: (s.score, s.alive))
+        name = self._snake_label(self.snakes.index(best))
+        self.result_text = self.t("winner", name=name)
+        self.win = False  # both racers are AI
+        self._end_round(best.score)
 
     def _finish_versus(self, alive):
         if len(alive) == 1:
@@ -421,9 +511,9 @@ class SnakeGame(RenderMixin):
     def _snake_label(self, index):
         if self.mode == BATTLE:
             return self.t("p1") if index == 0 else self.t("p2")
-        if self.mode == AI_AI:
+        if self.mode in (AI_AI, AI_MINIMAX_DUEL, AI_FOOD_RUSH):
             return f"{self.t('ai')} {index + 1}"
-        if self.mode == AI_HUMAN:
+        if self.mode in (AI_HUMAN, AI_MINIMAX):
             return self.t("you") if index == 0 else self.t("ai")
         return self.t("player")
 
@@ -718,11 +808,14 @@ class SnakeGame(RenderMixin):
 
     def _key_ai_menu(self, event):
         key = event.key
-        if pygame.K_1 <= key <= pygame.K_2:
+        idx = None
+        if pygame.K_1 <= key <= pygame.K_9:
             idx = key - pygame.K_1
-            if idx < len(AI_MENU_MODES):
-                self.mode = AI_MENU_MODES[idx]
-                self.start_round()
+        elif key == pygame.K_0:
+            idx = 9  # the tenth entry
+        if idx is not None and idx < len(AI_MENU_MODES):
+            self.mode = AI_MENU_MODES[idx]
+            self.start_round()
         elif key == pygame.K_ESCAPE:
             self.state = STATE_MENU
 

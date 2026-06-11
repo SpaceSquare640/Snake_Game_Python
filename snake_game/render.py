@@ -306,44 +306,58 @@ class RenderMixin:
         self._text(self.t("press_key"), "big", theme.WHITE, center=(WIDTH // 2, HEIGHT // 2 + 30))
 
     def _draw_leaderboard(self):
-        self._text(self.t("leaderboard_title"), "big", theme.ACCENT, center=(WIDTH // 2, 64))
-        margin = 40
-        col_w = (WIDTH - 2 * margin - 20) // 2
-        x0 = margin
-        y0 = 120
-        row_h = 118
+        self._text(self.t("leaderboard_title"), "big", theme.ACCENT, center=(WIDTH // 2, 50))
+        # Three compact columns so all 16 modes fit on one screen.
+        margin, gap, cols = 18, 10, 3
+        col_w = (WIDTH - 2 * margin - (cols - 1) * gap) // cols
+        x0, y0, row_h = margin, 88, 104
+        shown = 3  # top scores per mode (keeps each panel short)
         for i, key in enumerate(MODE_KEYS):
-            col, row = i % 2, i // 2
-            bx = x0 + col * (col_w + 20)
+            col, row = i % cols, i // cols
+            bx = x0 + col * (col_w + gap)
             by = y0 + row * row_h
-            panel = pygame.Rect(bx, by, col_w, row_h - 14)
+            panel = pygame.Rect(bx, by, col_w, row_h - 12)
             pygame.draw.rect(self.screen, theme.PANEL, panel, border_radius=10)
             pygame.draw.rect(self.screen, theme.BORDER, panel, 1, border_radius=10)
-            self._text(self.t(key), "small", theme.ACCENT, topleft=(bx + 12, by + 8))
+            self._text(self.t(key), "tiny", theme.ACCENT, topleft=(bx + 10, by + 7))
             board = self.profile.leaderboards.get(key, [])
             if not board:
-                self._text(self.t("empty_board"), "tiny", theme.DIM, topleft=(bx + 12, by + 38))
-            for r, entry in enumerate(board):
-                line = f"{r + 1}. {entry['name'][:9]:<9}  {entry['score']}"
+                self._text(self.t("empty_board"), "tiny", theme.DIM, topleft=(bx + 10, by + 32))
+            for r, entry in enumerate(board[:shown]):
+                line = f"{r + 1}. {entry['name'][:7]:<7} {entry['score']}"
                 self._text(line, "tiny", theme.WHITE if r == 0 else theme.GREY,
-                           topleft=(bx + 12, by + 36 + r * 14))
-        self._button(pygame.Rect(WIDTH // 2 - 90, HEIGHT - 86, 180, 48),
-                     self.t("back"), "sub_back")
-        self._text(self.t("back_hint"), "tiny", theme.GREY, center=(WIDTH // 2, HEIGHT - 28))
+                           topleft=(bx + 10, by + 30 + r * 16))
+        self._button(pygame.Rect(WIDTH // 2 - 90, HEIGHT - 64, 180, 44),
+                     self.t("back"), "sub_back", font="small")
+        self._text(self.t("back_hint"), "tiny", theme.GREY, center=(WIDTH // 2, HEIGHT - 14))
+
+    # Number badges for the All-AI menu (1-9 then 0 for the tenth entry).
+    _AI_BADGES = "1234567890"
 
     def _draw_ai_menu(self):
-        self._text(self.t("ai_menu_title"), "big", theme.ACCENT, center=(WIDTH // 2, 90))
-        bw, bh = 360, 64
-        x = (WIDTH - bw) // 2
+        self._text(self.t("ai_menu_title"), "big", theme.ACCENT, center=(WIDTH // 2, 64))
+        margin, gap, cols = 40, 18, 2
+        bw = (WIDTH - 2 * margin - gap) // cols
+        bh, desc_h, vgap = 50, 16, 12
+        cell_h = bh + desc_h + vgap
+        y0 = 116
         for i, mode in enumerate(AI_MENU_MODES):
+            col, row = i % cols, i // cols
+            x = margin + col * (bw + gap)
+            y = y0 + row * cell_h
             key = MODE_KEYS[mode]
             best = self.profile.highscores.get(key, 0)
-            rect = pygame.Rect(x, 190 + i * (bh + 20), bw, bh)
-            self._button(rect, f"{i + 1}.  {self.t(key)}   ({self.t('high')}: {best})",
-                         "start_mode", mode)
-        self._button(pygame.Rect(x, 190 + len(AI_MENU_MODES) * (bh + 20) + 10, bw, 50),
-                     self.t("back"), "back_menu")
-        self._text(self.t("back_hint"), "tiny", theme.GREY, center=(WIDTH // 2, HEIGHT - 36))
+            badge = self._AI_BADGES[i] if i < len(self._AI_BADGES) else None
+            self._button(pygame.Rect(x, y, bw, bh),
+                         f"{self.t(key)}   ({self.t('high')}: {best})",
+                         "start_mode", mode, font="small", badge=badge)
+            self._text(self.t("desc_" + key), "tiny", theme.DIM,
+                       center=(x + bw // 2, y + bh + desc_h // 2 - 1))
+        nrows = (len(AI_MENU_MODES) + cols - 1) // cols
+        back_y = y0 + nrows * cell_h + 6
+        self._button(pygame.Rect((WIDTH - 240) // 2, back_y, 240, 46),
+                     self.t("back"), "back_menu", font="small")
+        self._text(self.t("back_hint"), "tiny", theme.GREY, center=(WIDTH // 2, HEIGHT - 22))
 
     def _draw_color_menu(self):
         self._text(self.t("color_menu"), "mid", theme.ACCENT, center=(WIDTH // 2, 70))
@@ -459,7 +473,7 @@ class RenderMixin:
             self._text(self.t("replay_label"), "small", theme.GOLD, topleft=(WIDTH - 110, 10))
 
         if self.mode in FILL_MODES:
-            filled = len(self.snakes[0].body)
+            filled = sum(len(s.body) for s in self.snakes)
             self._text(f"{self.t('filled')}: {filled} / {COLS * ROWS}", "small",
                        theme.WHITE, topleft=(16, 34))
             best = self.profile.highscores[MODE_KEYS[self.mode]]

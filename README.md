@@ -6,7 +6,7 @@ profiles, and an auto-setup bootstrap that installs everything it needs.
 
 **Languages:** [English](#english) · [繁體中文](#繁體中文) · [简体中文](#简体中文)
 
-> **Version 1.4.1** — see the full [CHANGELOG](CHANGELOG.md) · new here? read the [Guidebook](Guidebook.md).
+> **Version 1.5.0** — see the full [CHANGELOG](CHANGELOG.md) · new here? read the [Guidebook](Guidebook.md).
 
 > ▶ **Play in your browser (no install):** **https://spacesquare640.github.io/Snake_Game_Python/**
 > — a full HTML5 port lives on the [`HTML_Version`](https://github.com/SpaceSquare640/Snake_Game_Python/tree/HTML_Version) branch.
@@ -65,7 +65,7 @@ Released separately  ──►  attached to each GitHub Release:
   - auto-downloads any missing package
   - checks the installed package version
   - auto-updates outdated packages
-- **8 Game Modes** across two menus (each starts with a "Press SPACE / button to start" screen):
+- **16 game modes** across two menus (each starts with a "Press SPACE / button to start" screen):
   - **Main menu:**
     - **Classic** — the timeless single-player Snake
     - **Survival** — speed ramps up the longer you live
@@ -73,9 +73,11 @@ Released separately  ──►  attached to each GitHub Release:
     - **Level** — clear obstacle-filled stages; advance as your score climbs
     - **AI vs Human** — race the AI for the food
     - **Player Fill** — every step grows you; fill the whole board without crashing
-  - **All-AI menu:**
-    - **AI vs AI** — watch two BFS-driven snakes compete
-    - **AI Fill** — a perfect Hamiltonian-cycle AI fills every cell of the board
+  - **All-AI menu** — ten AI-algorithm showcases:
+    - **AI vs AI** (two BFS snakes compete) · **AI Fill** (a perfect Hamiltonian-cycle fill)
+    - **A\* Pathfinder**, **Annealing Master**, **Greedy (Easy)**, **Drift / Drunk** — one AI snake plays Classic with that algorithm
+    - **Minimax vs You** (play a blocking AI) · **Minimax Duel** (hunter vs fleeing runner)
+    - **Co-op Fill** (two snakes fill the board together) · **Food Rush** (race to eat 12 apples)
 - **Full on-screen GUI** — clickable menus, a **Settings** menu, an **All-AI** menu, and an on-screen **D-pad** (up/down/left/right buttons) for mouse/touch play
 - **Themes, sound & more** — four **visual themes** (Dark, Neon, Retro CRT, Minimal), **sound effects + music** toggle, a **leaderboard** (top-5 per mode), **key remapping**, and an optional FPS counter — all in Settings
 - **Replays** — every run is recorded with a seeded RNG + input log and can be replayed exactly; revisit the last 8 runs from the **Replays** page
@@ -137,6 +139,12 @@ roomiest direction — avoiding walls, obstacles, and other snakes.
 that visits every cell of the board exactly once. By always following the cycle,
 the snake can never trap itself and steadily fills the entire field.
 
+The **All-AI menu** adds a whole toolbox of brains beyond BFS: **A\*** (heuristic
+search with an aggressiveness dial), **simulated annealing** (escapes dead ends
+by occasionally taking a worse-looking move), **greedy best-first** (fast but
+reckless), a **DFS / random-walk** drift, and an adversarial **minimax** that
+predicts the opponent and seals off its living space.
+
 ---
 
 ## 繁體中文
@@ -149,7 +157,7 @@ the snake can never trap itself and steadily fills the entire field.
   - 自動下載缺少的套件
   - 檢查已安裝套件的版本
   - 自動更新過舊的套件
-- **8 種遊戲模式**，分屬兩個選單（每種都會先顯示「按空白鍵／按鈕開始」畫面）：
+- **16 種遊戲模式**，分屬兩個選單（每種都會先顯示「按空白鍵／按鈕開始」畫面）：
   - **主選單：**
     - **經典模式** — 永恆的單人貪食蛇
     - **生存模式** — 活得越久，速度越快
@@ -157,9 +165,11 @@ the snake can never trap itself and steadily fills the entire field.
     - **關卡模式** — 通過充滿障礙的關卡，分數越高關卡越進階
     - **AI 對 玩家** — 與 AI 搶食物
     - **玩家填滿** — 每走一步就變長，在不撞死的前提下填滿整個場地
-  - **全 AI 選單：**
-    - **AI 對 AI** — 觀看兩條 BFS 智慧蛇對決
-    - **AI 填滿** — 採用完美漢米頓迴圈的 AI，填滿場地的每一格
+  - **全 AI 選單** — 十種 AI 演算法展示：
+    - **AI 對 AI**（兩條 BFS 蛇對決）· **AI 填滿**（完美漢米頓迴圈填滿）
+    - **A\* 尋路**、**退火大師**、**貪婪（簡單）**、**漂移／醉酒** — 由單條 AI 蛇以該演算法玩經典模式
+    - **Minimax 對你**（對戰會封鎖你的 AI）· **Minimax 對決**（獵手追逐逃跑者）
+    - **協作填滿**（兩蛇共同填滿場地）· **搶食競賽**（搶先吃滿 12 顆蘋果）
 - **完整畫面 GUI** — 可點選的選單、**設定**選單、**全 AI** 選單，以及畫面上的
   **方向鍵（D-pad）**（上下左右按鈕），支援滑鼠／觸控操作
 - **主題、音效與更多** — 四種 **佈景主題**（深色、霓虹、復古 CRT、極簡）、**音效＋音樂**
@@ -221,6 +231,10 @@ python Snake_Game_Python.py
 恰好經過棋盤上每一格各一次。只要永遠沿著迴圈前進，蛇就絕不會困住自己，
 並穩定地填滿整個場地。
 
+**全 AI 選單** 在 BFS 之外提供一整套大腦：**A\***（可調侵略性的啟發式搜尋）、
+**模擬退火**（偶爾選擇看似較差的走法以逃出死胡同）、**貪婪最佳優先**（快但魯莽）、
+**DFS／隨機遊走** 漂移，以及會預測對手並封鎖其生存空間的對抗式 **Minimax**。
+
 ---
 
 ## 简体中文
@@ -233,7 +247,7 @@ python Snake_Game_Python.py
   - 自动下载缺少的包
   - 检查已安装包的版本
   - 自动更新过旧的包
-- **8 种游戏模式**，分属两个菜单（每种都会先显示“按空格键／按钮开始”画面）：
+- **16 种游戏模式**，分属两个菜单（每种都会先显示“按空格键／按钮开始”画面）：
   - **主菜单：**
     - **经典模式** — 永恒的单人贪食蛇
     - **生存模式** — 活得越久，速度越快
@@ -241,9 +255,11 @@ python Snake_Game_Python.py
     - **关卡模式** — 通过充满障碍的关卡，分数越高关卡越进阶
     - **AI 对 玩家** — 与 AI 抢食物
     - **玩家填满** — 每走一步就变长，在不撞死的前提下填满整个场地
-  - **全 AI 菜单：**
-    - **AI 对 AI** — 观看两条 BFS 智能蛇对决
-    - **AI 填满** — 采用完美哈密顿回路的 AI，填满场地的每一格
+  - **全 AI 菜单** — 十种 AI 算法展示：
+    - **AI 对 AI**（两条 BFS 蛇对决）· **AI 填满**（完美哈密顿回路填满）
+    - **A\* 寻路**、**退火大师**、**贪婪（简单）**、**漂移／醉酒** — 由单条 AI 蛇以该算法玩经典模式
+    - **Minimax 对你**（对战会封锁你的 AI）· **Minimax 对决**（猎手追逐逃跑者）
+    - **协作填满**（两蛇共同填满场地）· **抢食竞赛**（抢先吃满 12 颗苹果）
 - **完整画面 GUI** — 可点选的菜单、**设置**菜单、**全 AI** 菜单，以及画面上的
   **方向键（D-pad）**（上下左右按钮），支持鼠标／触控操作
 - **主题、音效与更多** — 四种 **界面主题**（深色、霓虹、复古 CRT、极简）、**音效＋音乐**
@@ -304,6 +320,10 @@ python Snake_Game_Python.py
 **AI 填满** 模式采用不同策略：预先计算一条 **哈密顿回路（Hamiltonian cycle）**，
 恰好经过棋盘上每一格各一次。只要永远沿着回路前进，蛇就绝不会困住自己，
 并稳定地填满整个场地。
+
+**全 AI 菜单** 在 BFS 之外提供一整套大脑：**A\***（可调侵略性的启发式搜索）、
+**模拟退火**（偶尔选择看似较差的走法以逃出死胡同）、**贪婪最佳优先**（快但鲁莽）、
+**DFS／随机游走** 漂移，以及会预测对手并封锁其生存空间的对抗式 **Minimax**。
 
 ---
 

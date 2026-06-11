@@ -45,15 +45,30 @@ LEFT = (-1, 0)
 RIGHT = (1, 0)
 
 # Game modes ---------------------------------------------------------------
-(CLASSIC, SURVIVAL, BATTLE, LEVEL, AI_HUMAN, PLAYER_FILL, AI_AI, AI_FILL) = range(8)
+# The first eight are the original modes; the rest are the v1.5.0 algorithm
+# showcases that live in the All-AI menu.
+(CLASSIC, SURVIVAL, BATTLE, LEVEL, AI_HUMAN, PLAYER_FILL, AI_AI, AI_FILL,
+ AI_ASTAR, AI_ANNEAL, AI_GREEDY, AI_DRIFT, AI_MINIMAX, AI_MINIMAX_DUEL,
+ AI_COOP_FILL, AI_FOOD_RUSH) = range(16)
 MODE_KEYS = [
     "classic", "survival", "battle", "level",
     "ai_human", "player_fill", "ai_ai", "ai_fill",
+    "ai_astar", "ai_anneal", "ai_greedy", "ai_drift",
+    "ai_minimax", "ai_minimax_duel", "ai_coop_fill", "ai_food_rush",
 ]
 MAIN_MENU_MODES = [CLASSIC, SURVIVAL, BATTLE, LEVEL, AI_HUMAN, PLAYER_FILL]
-AI_MENU_MODES = [AI_AI, AI_FILL]
-TWO_SNAKE_MODES = {BATTLE, AI_AI, AI_HUMAN}
-FILL_MODES = {PLAYER_FILL, AI_FILL}
+AI_MENU_MODES = [
+    AI_AI, AI_FILL, AI_ASTAR, AI_ANNEAL, AI_GREEDY, AI_DRIFT,
+    AI_MINIMAX, AI_MINIMAX_DUEL, AI_COOP_FILL, AI_FOOD_RUSH,
+]
+# A single AI snake playing an otherwise-classic round (watch-only showcases).
+SOLO_AI_MODES = {AI_ASTAR, AI_ANNEAL, AI_GREEDY, AI_DRIFT}
+# Two snakes share the board (versus or duel). AI_MINIMAX has a human on the left.
+TWO_SNAKE_MODES = {BATTLE, AI_AI, AI_HUMAN, AI_MINIMAX, AI_MINIMAX_DUEL, AI_FOOD_RUSH}
+# Snakes grow every tick to paint the board; win when it is full.
+FILL_MODES = {PLAYER_FILL, AI_FILL, AI_COOP_FILL}
+# Food Rush: the first AI to eat this many apples wins.
+RUSH_TARGET = 12
 
 # Lightweight state machine.
 STATE_MENU, STATE_READY, STATE_PLAY, STATE_OVER = range(4)

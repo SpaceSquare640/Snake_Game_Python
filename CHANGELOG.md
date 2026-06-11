@@ -10,6 +10,30 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## English
 
+### [1.5.0] — 2026-06-11
+
+#### Added
+- **Eight new AI-algorithm modes** in the All-AI menu, each showcasing how a
+  different search strategy plays Snake:
+  - **A\* Pathfinder** — A\* heuristic search with an aggressiveness dial that
+    trades food-chasing against self-preservation.
+  - **Annealing Master** — simulated annealing that escapes dead ends by
+    occasionally taking a worse-looking move.
+  - **Greedy (Easy)** — greedy best-first; fast and reckless, dies easily.
+  - **Drift / Drunk** — a DFS / random walk that wanders erratically.
+  - **Minimax vs You** — play against a Minimax AI that predicts and blocks you.
+  - **Minimax Duel** — a Minimax hunter chases a fleeing survivor (watch-only).
+  - **Co-op Fill** — two AI snakes split the board and perfectly fill it together.
+  - **Food Rush** — two AI snakes race to eat 12 apples first.
+- The All-AI menu is now a two-column grid (ten modes) with a one-line
+  description under each; the Leaderboard fits all sixteen modes on one screen.
+
+#### Changed (internal)
+- **Modular refactor of the browser edition** — the single ~1,700-line `game.js`
+  is now an ES-module package under `js/` mirroring the Python layout: `config`,
+  `theme`, `i18n`, `version`, `profile`, `ai`, `entities`, `audio`, `render`,
+  `game`, and `main`. No gameplay or save-file changes.
+
 ### [1.4.1] — 2026-06-11
 
 #### Changed (internal)
@@ -122,6 +146,25 @@ First public release.
 
 ## 繁體中文
 
+### [1.5.0] — 2026-06-11
+
+#### 新增
+- **全 AI 選單新增八種 AI 演算法模式**，各自展示不同搜尋策略如何玩貪食蛇：
+  - **A\* 尋路** — A\* 啟發式搜尋，可調「侵略性」在搶食與自保之間取捨。
+  - **退火大師** — 模擬退火，偶爾選擇看似較差的走法以逃出死胡同。
+  - **貪婪（簡單）** — 貪婪最佳優先；快但魯莽、容易撞死。
+  - **漂移／醉酒** — DFS／隨機遊走，漫無目的地遊蕩。
+  - **Minimax 對你** — 與會預測並封鎖你的 Minimax AI 對戰。
+  - **Minimax 對決** — Minimax 獵手追殺逃跑的倖存者（純觀看）。
+  - **協作填滿** — 兩條 AI 蛇分割棋盤、完美協作填滿整個場地。
+  - **搶食競賽** — 兩條 AI 蛇競相搶先吃下 12 顆蘋果。
+- 全 AI 選單改為雙欄網格（十種模式），每項下方附一行說明；排行榜可一頁容納全部十六種模式。
+
+#### 變更（內部）
+- **網頁版模組化重構** — 原本約 1,700 行的單一 `game.js` 已拆分為 `js/` 下的 ES 模組套件，
+  與 Python 結構對應：`config`、`theme`、`i18n`、`version`、`profile`、`ai`、`entities`、
+  `audio`、`render`、`game` 與 `main`。玩法與存檔完全不變。
+
 ### [1.4.1] — 2026-06-11
 
 #### 變更（內部）
@@ -215,6 +258,25 @@ First public release.
 ---
 
 ## 简体中文
+
+### [1.5.0] — 2026-06-11
+
+#### 新增
+- **全 AI 菜单新增八种 AI 算法模式**，各自展示不同搜索策略如何玩贪食蛇：
+  - **A\* 寻路** — A\* 启发式搜索，可调「侵略性」在抢食与自保之间取舍。
+  - **退火大师** — 模拟退火，偶尔选择看似较差的走法以逃出死胡同。
+  - **贪婪（简单）** — 贪婪最佳优先；快但鲁莽、容易撞死。
+  - **漂移／醉酒** — DFS／随机游走，漫无目的地游荡。
+  - **Minimax 对你** — 与会预测并封锁你的 Minimax AI 对战。
+  - **Minimax 对决** — Minimax 猎手追杀逃跑的幸存者（纯观看）。
+  - **协作填满** — 两条 AI 蛇分割棋盘、完美协作填满整个场地。
+  - **抢食竞赛** — 两条 AI 蛇竞相抢先吃下 12 颗苹果。
+- 全 AI 菜单改为双栏网格（十种模式），每项下方附一行说明；排行榜可一页容纳全部十六种模式。
+
+#### 变更（内部）
+- **网页版模块化重构** — 原本约 1,700 行的单一 `game.js` 已拆分为 `js/` 下的 ES 模块包，
+  与 Python 结构对应：`config`、`theme`、`i18n`、`version`、`profile`、`ai`、`entities`、
+  `audio`、`render`、`game` 与 `main`。玩法与存档完全不变。
 
 ### [1.4.1] — 2026-06-11
 

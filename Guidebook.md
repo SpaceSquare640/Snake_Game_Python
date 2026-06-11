@@ -60,13 +60,25 @@ buttons you can click instead of using the keyboard.
 
 **All-AI menu:**
 
+Ten AI-algorithm showcases — pick with the mouse or keys `1`–`9` and `0`:
+
 | Mode | Goal | Controls |
 |------|------|----------|
 | **AI vs AI** | Sit back and watch two BFS snakes duel. | — (just watch) |
 | **AI Fill** | Watch a perfect Hamiltonian-cycle AI fill every cell. | — (just watch) |
+| **A\* Pathfinder** | One AI plays Classic with A\* heuristic search (aggressiveness dial). | — (just watch) |
+| **Annealing Master** | Simulated-annealing AI that escapes near-traps. | — (just watch) |
+| **Greedy (Easy)** | Greedy best-first — fast and reckless, dies easily. | — (just watch) |
+| **Drift / Drunk** | A DFS / random-walk snake wandering erratically. | — (just watch) |
+| **Minimax vs You** | *You* play; the AI predicts and blocks your space. | WASD / D-pad |
+| **Minimax Duel** | A Minimax hunter chases a fleeing survivor. | — (just watch) |
+| **Co-op Fill** | Two AI snakes split the board and fill it together. | — (just watch) |
+| **Food Rush** | Two AI snakes race to eat 12 apples first. | — (just watch) |
 
 Two-snake modes end when only one snake (or none) is left; the survivor wins.
 Fill modes end when the board is full (**You Win!**) or you crash.
+**Food Rush** ends when an AI reaches 12 apples; **Minimax vs You** is a survival
+duel — outlast the blocking AI.
 
 ### 5. Levelling up
 
@@ -130,13 +142,24 @@ python Snake_Game_Python.py
 
 **全 AI 選單：**
 
+十種 AI 演算法展示 — 用滑鼠或按鍵 `1`–`9` 與 `0` 選擇：
+
 | 模式 | 目標 | 操作 |
 |------|------|------|
 | **AI 對 AI** | 輕鬆觀看兩條 BFS 蛇對決。 | —（純觀賞） |
 | **AI 填滿** | 觀看採用完美漢米頓迴圈的 AI 填滿每一格。 | —（純觀賞） |
+| **A\* 尋路** | 單條 AI 以 A\* 啟發式搜尋玩經典（可調侵略性）。 | —（純觀賞） |
+| **退火大師** | 模擬退火 AI，能逃出瀕臨困死的局面。 | —（純觀賞） |
+| **貪婪（簡單）** | 貪婪最佳優先 — 快但魯莽、容易撞死。 | —（純觀賞） |
+| **漂移／醉酒** | DFS／隨機遊走，漫無目的地遊蕩。 | —（純觀賞） |
+| **Minimax 對你** | *你* 操作；AI 預測並封鎖你的空間。 | WASD／方向鍵 |
+| **Minimax 對決** | Minimax 獵手追殺逃跑的倖存者。 | —（純觀賞） |
+| **協作填滿** | 兩條 AI 蛇分割棋盤、共同填滿。 | —（純觀賞） |
+| **搶食競賽** | 兩條 AI 蛇競相搶先吃下 12 顆蘋果。 | —（純觀賞） |
 
 雙蛇模式會在只剩一條（或全滅）時結束，存活者獲勝。
 填滿模式在場地填滿時結束（**你贏了！**），或在撞死時結束。
+**搶食競賽** 在某條 AI 吃滿 12 顆時結束；**Minimax 對你** 是生存對決 — 撐得比封鎖你的 AI 更久。
 
 ### 5. 升級
 
@@ -200,13 +223,24 @@ python Snake_Game_Python.py
 
 **全 AI 菜单：**
 
+十种 AI 算法展示 — 用鼠标或按键 `1`–`9` 与 `0` 选择：
+
 | 模式 | 目标 | 操作 |
 |------|------|------|
 | **AI 对 AI** | 轻松观看两条 BFS 蛇对决。 | —（纯观赏） |
 | **AI 填满** | 观看采用完美哈密顿回路的 AI 填满每一格。 | —（纯观赏） |
+| **A\* 寻路** | 单条 AI 以 A\* 启发式搜索玩经典（可调侵略性）。 | —（纯观赏） |
+| **退火大师** | 模拟退火 AI，能逃出濒临困死的局面。 | —（纯观赏） |
+| **贪婪（简单）** | 贪婪最佳优先 — 快但鲁莽、容易撞死。 | —（纯观赏） |
+| **漂移／醉酒** | DFS／随机游走，漫无目的地游荡。 | —（纯观赏） |
+| **Minimax 对你** | *你* 操作；AI 预测并封锁你的空间。 | WASD／方向键 |
+| **Minimax 对决** | Minimax 猎手追杀逃跑的幸存者。 | —（纯观赏） |
+| **协作填满** | 两条 AI 蛇分割棋盘、共同填满。 | —（纯观赏） |
+| **抢食竞赛** | 两条 AI 蛇竞相抢先吃下 12 颗苹果。 | —（纯观赏） |
 
 双蛇模式会在只剩一条（或全灭）时结束，存活者获胜。
 填满模式在场地填满时结束（**你赢了！**），或在撞死时结束。
+**抢食竞赛** 在某条 AI 吃满 12 颗时结束；**Minimax 对你** 是生存对决 — 撑得比封锁你的 AI 更久。
 
 ### 5. 升级
 

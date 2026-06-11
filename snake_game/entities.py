@@ -15,6 +15,7 @@ class Snake:
         self.grow_pending = 0
         self.score = 0
         self.cycle = None               # set for Hamiltonian fill AI
+        self.brain = "bfs"              # AI planner: bfs/astar/greedy/anneal/...
 
     @property
     def head(self):
