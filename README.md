@@ -6,7 +6,7 @@ profiles, and an auto-setup bootstrap that installs everything it needs.
 
 **Languages:** [English](#english) · [繁體中文](#繁體中文) · [简体中文](#简体中文)
 
-> **Version 1.4.0** — see the full [CHANGELOG](CHANGELOG.md) · new here? read the [Guidebook](Guidebook.md).
+> **Version 1.4.1** — see the full [CHANGELOG](CHANGELOG.md) · new here? read the [Guidebook](Guidebook.md).
 
 > ▶ **Play in your browser (no install):** **https://spacesquare640.github.io/Snake_Game_Python/**
 > — a full HTML5 port lives on the [`HTML_Version`](https://github.com/SpaceSquare640/Snake_Game_Python/tree/HTML_Version) branch.
@@ -21,7 +21,20 @@ branch.
 
 ```
 Snake_Game_Python/            (main branch — repo root)
-├── Snake_Game_Python.py      # the game (run this)
+├── Snake_Game_Python.py      # thin launcher (run this)
+├── snake_game/               # the game package (modular, since v1.4.1)
+│   ├── bootstrap.py          #   self-installs Pygame on first run
+│   ├── config.py             #   geometry, paths, mode/state enums
+│   ├── theme.py              #   color themes + live palette
+│   ├── i18n.py               #   translations (en / zh_tw / zh_cn)
+│   ├── profile.py            #   save data & settings
+│   ├── ai.py                 #   BFS / survival / Hamiltonian AI
+│   ├── entities.py           #   the Snake
+│   ├── audio.py              #   procedural sound
+│   ├── render.py             #   all drawing (RenderMixin)
+│   ├── game.py               #   SnakeGame controller (logic)
+│   ├── version.py · app.py   #   version/update check · entry point
+│   └── __init__.py
 ├── requirements.txt
 ├── assets/                   # icon.png, icon.ico
 ├── README.md

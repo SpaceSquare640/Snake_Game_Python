@@ -10,6 +10,16 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## English
 
+### [1.4.1] — 2026-06-11
+
+#### Changed (internal)
+- **Modular refactor** — the single ~2,300-line `Snake_Game_Python.py` is now a
+  clean `snake_game/` package split by concern: `bootstrap`, `version`,
+  `config`, `theme`, `i18n`, `profile`, `ai`, `entities`, `audio`, `render`
+  (all drawing), `game` (logic), and `app`. `Snake_Game_Python.py` is now a thin
+  launcher. **No gameplay, UI, or save-file changes** — `python
+  Snake_Game_Python.py` and the packaged exe run exactly as before.
+
 ### [1.4.0] — 2026-06-11
 
 #### Added
@@ -112,6 +122,15 @@ First public release.
 
 ## 繁體中文
 
+### [1.4.1] — 2026-06-11
+
+#### 變更（內部）
+- **模組化重構** — 原本約 2,300 行的單一 `Snake_Game_Python.py` 已拆分為結構清晰的
+  `snake_game/` 套件，依職責分為：`bootstrap`、`version`、`config`、`theme`、`i18n`、
+  `profile`、`ai`、`entities`、`audio`、`render`（所有繪圖）、`game`（遊戲邏輯）與
+  `app`。`Snake_Game_Python.py` 現在只是輕量啟動器。**玩法、介面與存檔完全不變** —
+  `python Snake_Game_Python.py` 與打包後的 exe 執行方式與先前完全相同。
+
 ### [1.4.0] — 2026-06-11
 
 #### 新增
@@ -196,6 +215,15 @@ First public release.
 ---
 
 ## 简体中文
+
+### [1.4.1] — 2026-06-11
+
+#### 变更（内部）
+- **模块化重构** — 原本约 2,300 行的单一 `Snake_Game_Python.py` 已拆分为结构清晰的
+  `snake_game/` 包，按职责分为：`bootstrap`、`version`、`config`、`theme`、`i18n`、
+  `profile`、`ai`、`entities`、`audio`、`render`（所有绘图）、`game`（游戏逻辑）与
+  `app`。`Snake_Game_Python.py` 现在只是轻量启动器。**玩法、界面与存档完全不变** —
+  `python Snake_Game_Python.py` 与打包后的 exe 运行方式与此前完全相同。
 
 ### [1.4.0] — 2026-06-11
 
