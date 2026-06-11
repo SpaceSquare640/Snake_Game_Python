@@ -1,7 +1,8 @@
 # Snake_Game_Python — HTML Version (browser edition)
 
 A faithful, install-free **browser port** of Snake_Game_Python, built with the
-HTML5 Canvas and vanilla JavaScript — no build step, no dependencies.
+HTML5 Canvas and vanilla JavaScript **ES modules** (under `js/`, mirroring the
+Python package) — no build step, no dependencies.
 
 **Languages:** [English](#english) · [繁體中文](#繁體中文) · [简体中文](#简体中文)
 
@@ -30,8 +31,10 @@ python -m http.server 8099
 
 The same game as the desktop edition:
 
-- **8 modes** — Classic, Survival, Battle, Level, AI vs Human, Player Fill
-  (main menu) and AI vs AI, AI Fill (All-AI menu).
+- **16 modes** — Classic, Survival, Battle, Level, AI vs Human, Player Fill
+  (main menu) and **ten AI-algorithm showcases** in the All-AI menu: AI vs AI,
+  AI Fill, A\* Pathfinder, Annealing Master, Greedy (Easy), Drift / Drunk,
+  Minimax vs You, Minimax Duel, Co-op Fill, and Food Rush.
 - **Clickable GUI** with a Settings menu, an All-AI menu, and an on-screen
   **D-pad** for mouse/touch play.
 - **Themes** (Dark / Neon / Retro CRT / Minimal), **sound effects + music**
@@ -39,8 +42,9 @@ The same game as the desktop edition:
   optional FPS counter, a **replay system** (deterministic, seeded), and an
   **interactive tutorial** for new players.
 - **3 languages** — English, Traditional Chinese, Simplified Chinese.
-- **BFS AI** with a survival fallback, plus a perfect **Hamiltonian-cycle**
-  fill AI.
+- **A toolbox of snake AIs** — BFS with a survival fallback, a perfect
+  **Hamiltonian-cycle** fill, plus **A\***, **simulated annealing**, **greedy
+  best-first**, a **DFS / random-walk** drift, and an adversarial **minimax**.
 - **Saved progress** (name, level, XP, colors, high scores) via `localStorage`.
 - **Update check** against GitHub Releases, shown in the top-right corner.
 
@@ -76,14 +80,16 @@ python -m http.server 8099
 
 與桌面版相同的遊戲：
 
-- **8 種模式** — 經典、生存、對戰、關卡、AI 對 玩家、玩家填滿（主選單），
-  以及 AI 對 AI、AI 填滿（全 AI 選單）。
+- **16 種模式** — 經典、生存、對戰、關卡、AI 對 玩家、玩家填滿（主選單），
+  以及全 AI 選單中的 **十種 AI 演算法展示**：AI 對 AI、AI 填滿、A\* 尋路、退火大師、
+  貪婪（簡單）、漂移／醉酒、Minimax 對你、Minimax 對決、協作填滿、搶食競賽。
 - **可點選的 GUI**，含設定選單、全 AI 選單，以及畫面上的 **方向鍵（D-pad）**，
   支援滑鼠／觸控。
 - **佈景主題**（深色／霓虹／復古 CRT／極簡）、**音效＋音樂**（WebAudio）、**排行榜**
   （各模式前 5 名）、**按鍵重新對應**，以及可選的 FPS 顯示。
 - **3 種語言** — 英文、繁體中文、簡體中文。
-- **BFS 人工智慧** 與生存後備策略，以及完美的 **漢米頓迴圈** 填滿 AI。
+- **整套蛇 AI 工具箱** — BFS 與生存後備策略、完美 **漢米頓迴圈** 填滿，以及 **A\***、
+  **模擬退火**、**貪婪最佳優先**、**DFS／隨機遊走** 漂移與對抗式 **Minimax**。
 - **進度儲存**（名稱、等級、經驗、顏色、最高分）使用 `localStorage`。
 - **更新檢查**：向 GitHub Releases 查詢，顯示於右上角。
 
@@ -119,14 +125,16 @@ python -m http.server 8099
 
 与桌面版相同的游戏：
 
-- **8 种模式** — 经典、生存、对战、关卡、AI 对 玩家、玩家填满（主菜单），
-  以及 AI 对 AI、AI 填满（全 AI 菜单）。
+- **16 种模式** — 经典、生存、对战、关卡、AI 对 玩家、玩家填满（主菜单），
+  以及全 AI 菜单中的 **十种 AI 算法展示**：AI 对 AI、AI 填满、A\* 寻路、退火大师、
+  贪婪（简单）、漂移／醉酒、Minimax 对你、Minimax 对决、协作填满、抢食竞赛。
 - **可点选的 GUI**，含设置菜单、全 AI 菜单，以及画面上的 **方向键（D-pad）**，
   支持鼠标／触控。
 - **界面主题**（深色／霓虹／复古 CRT／极简）、**音效＋音乐**（WebAudio）、**排行榜**
   （各模式前 5 名）、**按键重新映射**，以及可选的 FPS 显示。
 - **3 种语言** — 英文、繁体中文、简体中文。
-- **BFS 人工智能** 与生存后备策略，以及完美的 **哈密顿回路** 填满 AI。
+- **整套蛇 AI 工具箱** — BFS 与生存后备策略、完美 **哈密顿回路** 填满，以及 **A\***、
+  **模拟退火**、**贪婪最佳优先**、**DFS／随机游走** 漂移与对抗式 **Minimax**。
 - **进度保存**（名称、等级、经验、颜色、最高分）使用 `localStorage`。
 - **更新检查**：向 GitHub Releases 查询，显示于右上角。
 
