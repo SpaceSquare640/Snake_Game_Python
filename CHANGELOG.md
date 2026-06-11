@@ -10,6 +10,22 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## English
 
+### [1.5.1] — 2026-06-12
+
+#### Added
+- **Pause** — pause and resume any round with **P**, the on-screen ⏸ button, or
+  the new in-game overlay. The game also **auto-pauses** when the window loses
+  focus or the browser tab is hidden, so you never come back to a crash.
+- **Crisper visuals** — the browser canvas now renders at full device-pixel
+  resolution (sharp on Retina / high-DPI screens) and scales to fit any
+  viewport in both portrait and landscape, with a gently pulsing apple.
+
+#### Changed (browser edition)
+- **CrazyGames-ready** — added a loading splash with proper asset/font
+  preloading, a full game-lifecycle integration (auto-pause + ad breaks at
+  game over via the CrazyGames SDK), and responsive sizing. Off the CrazyGames
+  portal (GitHub Pages, local) every SDK call safely no-ops.
+
 ### [1.5.0] — 2026-06-11
 
 #### Added
@@ -146,6 +162,19 @@ First public release.
 
 ## 繁體中文
 
+### [1.5.1] — 2026-06-12
+
+#### 新增
+- **暫停** — 用 **P**、畫面上的 ⏸ 按鈕或新的遊戲內遮罩即可暫停與繼續任何一局。
+  當視窗失去焦點或瀏覽器分頁被切到背景時，遊戲也會**自動暫停**，回來時不會直接撞死。
+- **更清晰的畫面** — 瀏覽器畫布現在以完整裝置像素解析度渲染（在 Retina／高 DPI
+  螢幕上更銳利），並能在直向與橫向下自動縮放填滿任何視窗，蘋果還會輕輕地脈動。
+
+#### 變更（瀏覽器版）
+- **可上架 CrazyGames** — 加入載入畫面與正確的資源／字型預載、完整的遊戲生命週期
+  整合（自動暫停＋遊戲結束時透過 CrazyGames SDK 插入廣告），以及響應式縮放。在
+  CrazyGames 平台以外（GitHub Pages、本機），所有 SDK 呼叫都會安全地空轉。
+
 ### [1.5.0] — 2026-06-11
 
 #### 新增
@@ -258,6 +287,19 @@ First public release.
 ---
 
 ## 简体中文
+
+### [1.5.1] — 2026-06-12
+
+#### 新增
+- **暂停** — 用 **P**、画面上的 ⏸ 按钮或新的游戏内遮罩即可暂停与继续任何一局。
+  当窗口失去焦点或浏览器标签页被切到后台时，游戏也会**自动暂停**，回来时不会直接撞死。
+- **更清晰的画面** — 浏览器画布现在以完整设备像素分辨率渲染（在 Retina／高 DPI
+  屏幕上更锐利），并能在竖向与横向下自动缩放填满任何视口，苹果还会轻轻地脉动。
+
+#### 变更（浏览器版）
+- **可上架 CrazyGames** — 加入加载画面与正确的资源／字体预载、完整的游戏生命周期
+  集成（自动暂停＋游戏结束时通过 CrazyGames SDK 插入广告），以及响应式缩放。在
+  CrazyGames 平台以外（GitHub Pages、本地），所有 SDK 调用都会安全地空转。
 
 ### [1.5.0] — 2026-06-11
 

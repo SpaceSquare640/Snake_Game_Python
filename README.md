@@ -6,7 +6,7 @@ profiles, and an auto-setup bootstrap that installs everything it needs.
 
 **Languages:** [English](#english) · [繁體中文](#繁體中文) · [简体中文](#简体中文)
 
-> **Version 1.5.0** — see the full [CHANGELOG](CHANGELOG.md) · new here? read the [Guidebook](Guidebook.md).
+> **Version 1.5.1** — see the full [CHANGELOG](CHANGELOG.md) · new here? read the [Guidebook](Guidebook.md).
 
 > ▶ **Play in your browser (no install):** **https://spacesquare640.github.io/Snake_Game_Python/**
 > — a full HTML5 port lives on the [`HTML_Version`](https://github.com/SpaceSquare640/Snake_Game_Python/tree/HTML_Version) branch.
@@ -124,6 +124,7 @@ Download `Snake_Game_Python.exe` from the latest
 | `W A S D` | Move (Player 1 / single player) |
 | `Arrow Keys` | Move (Player 2 / single player) |
 | D-pad buttons | Move (mouse / touch) |
+| `P` | Pause / resume (or click the ⏸ button) |
 | `C` `L` `N` | Color / Language / Name |
 | `M` | Return to main menu |
 | `ESC` | Back / Exit |
@@ -217,6 +218,7 @@ python Snake_Game_Python.py
 | `W A S D` | 移動（玩家1 / 單人） |
 | `方向鍵` | 移動（玩家2 / 單人） |
 | 方向鍵按鈕 | 移動（滑鼠／觸控） |
+| `P` | 暫停 / 繼續（或點選 ⏸ 按鈕） |
 | `C` `L` `N` | 顏色 / 語言 / 名稱 |
 | `M` | 返回主選單 |
 | `ESC` | 返回 / 離開 |
@@ -307,6 +309,7 @@ python Snake_Game_Python.py
 | `W A S D` | 移动（玩家1 / 单人） |
 | `方向键` | 移动（玩家2 / 单人） |
 | 方向键按钮 | 移动（鼠标／触控） |
+| `P` | 暂停 / 继续（或点选 ⏸ 按钮） |
 | `C` `L` `N` | 颜色 / 语言 / 名称 |
 | `M` | 返回主菜单 |
 | `ESC` | 返回 / 退出 |

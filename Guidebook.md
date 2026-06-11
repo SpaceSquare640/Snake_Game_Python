@@ -40,7 +40,9 @@ sure Pygame is installed. This only happens once.
 
 Every mode opens on a **"Press SPACE / a button to start"** screen so you can
 get ready. Press **SPACE** or tap a D-pad button to begin. During play, press
-**`M`** (or the **Menu** button) to jump back to the menu at any time.
+**`P`** (or the **⏸** button) to pause and resume — the game also pauses itself
+if you switch away — and **`M`** (or the **Menu** button) to jump back to the
+menu at any time.
 
 The bottom **control bar** has an on-screen **D-pad** — four up/down/left/right
 buttons you can click instead of using the keyboard.
@@ -123,7 +125,8 @@ python Snake_Game_Python.py
 ### 3. 開始一局
 
 每種模式都會以 **「按空白鍵／按鈕開始」** 畫面開場，讓你做好準備。按 **空白鍵**
-或點一下方向鍵按鈕即可開始。遊戲進行中，隨時可按 **`M`**（或 **選單** 按鈕）返回主選單。
+或點一下方向鍵按鈕即可開始。遊戲進行中，隨時可按 **`P`**（或 **⏸** 按鈕）暫停與繼續
+（切換到其他視窗時也會自動暫停），按 **`M`**（或 **選單** 按鈕）返回主選單。
 
 底部 **控制列** 內建畫面 **方向鍵（D-pad）** —— 上下左右四顆按鈕，可用點選取代鍵盤。
 
@@ -204,7 +207,8 @@ python Snake_Game_Python.py
 ### 3. 开始一局
 
 每种模式都会以 **“按空格键／按钮开始”** 画面开场，让你做好准备。按 **空格键**
-或点一下方向键按钮即可开始。游戏进行中，随时可按 **`M`**（或 **菜单** 按钮）返回主菜单。
+或点一下方向键按钮即可开始。游戏进行中，随时可按 **`P`**（或 **⏸** 按钮）暂停与继续
+（切换到其他窗口时也会自动暂停），按 **`M`**（或 **菜单** 按钮）返回主菜单。
 
 底部 **控制栏** 内置画面 **方向键（D-pad）** —— 上下左右四个按钮，可用点选取代键盘。
 

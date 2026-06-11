@@ -35,6 +35,12 @@ class SnakeGame(RenderMixin):
         self.state = STATE_MENU
         self.mode = CLASSIC
         self.running = True
+        self.paused = False
+        # Window events that should auto-pause an in-progress round (SDL2).
+        self._pause_events = {
+            getattr(pygame, n) for n in ("WINDOWFOCUSLOST", "WINDOWMINIMIZED")
+            if hasattr(pygame, n)
+        }
 
         # Clickable buttons rebuilt every frame: list of (rect, action, arg).
         self.buttons = []
@@ -323,6 +329,8 @@ class SnakeGame(RenderMixin):
 
     # -- Update -------------------------------------------------------------
     def update(self, dt):
+        if self.paused:
+            return
         if self.state == STATE_TUTORIAL:
             self.move_accum += dt
             if self.move_accum >= self.tick_ms:
@@ -553,10 +561,33 @@ class SnakeGame(RenderMixin):
         first = self.snakes[0]
         return first if not first.is_ai else None
 
+    # -- Pause --------------------------------------------------------------
+    def _pausable(self):
+        return self.state in (STATE_PLAY, STATE_TUTORIAL)
+
+    def _pause_game(self):
+        if self.paused or not self._pausable():
+            return
+        self.paused = True
+        self.sound.stop_music()
+
+    def _resume_game(self):
+        if not self.paused:
+            return
+        self.paused = False
+        self.sound.set_music(self.profile.music)
+
+    def _toggle_pause(self):
+        self._resume_game() if self.paused else self._pause_game()
+
     # -- Input --------------------------------------------------------------
     def handle_event(self, event):
         if event.type == pygame.QUIT:
             self.running = False
+            return
+        # Lose focus / minimise -> auto-pause any in-progress round.
+        if event.type in self._pause_events:
+            self._pause_game()
             return
         # Press feedback: arm on mouse-down, fire on mouse-up over the same button.
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -650,6 +681,8 @@ class SnakeGame(RenderMixin):
             return
         if action == "start_tutorial":
             self.start_tutorial(); return
+        if action == "toggle_pause":
+            self._toggle_pause(); return
         if action == "start_mode":
             self.mode = arg
             self.start_round()
@@ -783,6 +816,13 @@ class SnakeGame(RenderMixin):
 
     def _key_tutorial(self, event):
         key = event.key
+        if self.paused:
+            if key in (pygame.K_ESCAPE, pygame.K_m):
+                self._resume_game()
+                self.state = STATE_MENU
+            else:
+                self._resume_game()
+            return
         if key in (pygame.K_ESCAPE, pygame.K_m):
             self.state = STATE_MENU
             return
@@ -827,10 +867,20 @@ class SnakeGame(RenderMixin):
 
     def _key_play(self, event):
         key = event.key
+        if self.paused:
+            if key in (pygame.K_SPACE, pygame.K_p):
+                self._resume_game()
+            elif key in (pygame.K_m, pygame.K_ESCAPE):
+                self._resume_game()
+                self.state = STATE_MENU
+            return
         if self.replaying:
             if key in (pygame.K_m, pygame.K_ESCAPE):
                 self.state = STATE_MENU
             return  # no live control during playback
+        if key == pygame.K_p:
+            self._pause_game()
+            return
         if key == pygame.K_m:
             self.state = STATE_MENU
             return

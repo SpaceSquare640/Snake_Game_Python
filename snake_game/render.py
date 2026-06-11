@@ -4,6 +4,8 @@ This is the only module that reads the live theme palette; it does so via
 ``theme.<NAME>`` so a runtime theme switch (which reassigns those globals)
 recolors the whole UI without rebinding.
 """
+import math
+
 import pygame
 
 from . import theme
@@ -49,6 +51,8 @@ class RenderMixin:
                 self._draw_center_banner(self.t("press_space"))
             elif self.state == STATE_OVER:
                 self._draw_game_over()
+        if self.paused and self.state in (STATE_PLAY, STATE_TUTORIAL):
+            self._draw_pause_overlay()
         if self.profile.show_fps:
             self._draw_fps()
         pygame.display.flip()
@@ -439,11 +443,17 @@ class RenderMixin:
             self._cell_rect(ox, oy, fill=theme.OBSTACLE, inset=1, radius=4)
 
         if self.food is not None:
-            fx, fy = self.food
-            self._cell_rect(fx, fy, fill=theme.FOOD_COLOR, inset=5, radius=8)
+            self._draw_food(*self.food)
 
         for snake in self.snakes:
             self._draw_snake(snake)
+
+    def _draw_food(self, fx, fy):
+        # A gently breathing apple — purely cosmetic, so it never touches game
+        # state or replay determinism (driven by the wall clock, not the tick).
+        pulse = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() / 260.0)
+        inset = int(round(4 + pulse * 2.5))  # 4..6 px breathing inset
+        self._cell_rect(fx, fy, fill=theme.FOOD_COLOR, inset=inset, radius=8)
 
     def _draw_snake(self, snake):
         n = len(snake.body)
@@ -471,6 +481,8 @@ class RenderMixin:
         self._text(self.t(MODE_KEYS[self.mode]), "small", theme.ACCENT, topleft=(16, 10))
         if self.replaying:  # REPLAY badge, top-right of the HUD
             self._text(self.t("replay_label"), "small", theme.GOLD, topleft=(WIDTH - 110, 10))
+        elif self.state == STATE_PLAY or self.paused:
+            self._draw_pause_button()
 
         if self.mode in FILL_MODES:
             filled = sum(len(s.body) for s in self.snakes)
@@ -579,6 +591,36 @@ class RenderMixin:
         pygame.draw.polygon(self.screen, color, pts)
 
     # -- Overlays -----------------------------------------------------------
+    def _draw_pause_button(self):
+        w, h = 42, 30
+        rect = pygame.Rect(WIDTH - w - 14, 9, w, h)
+        hover = rect.collidepoint(pygame.mouse.get_pos())
+        if hover:
+            self._glow(rect, theme.ACCENT, 7)
+        pygame.draw.rect(self.screen, theme.PANEL_HOVER if hover else theme.PANEL,
+                         rect, border_radius=7)
+        pygame.draw.rect(self.screen, theme.ACCENT if hover else theme.BORDER, rect,
+                         2 if hover else 1, border_radius=7)
+        col = theme.ACCENT if hover else theme.WHITE
+        if self.paused:  # play triangle
+            cx, cy = rect.x + 17, rect.centery
+            pygame.draw.polygon(self.screen, col,
+                                [(cx, cy - 7), (cx, cy + 7), (cx + 13, cy)])
+        else:  # two pause bars
+            pygame.draw.rect(self.screen, col, (rect.x + 15, rect.y + 8, 4, h - 16))
+            pygame.draw.rect(self.screen, col, (rect.x + 23, rect.y + 8, 4, h - 16))
+        self.buttons.append({"rect": rect, "action": "toggle_pause", "arg": None})
+
+    def _draw_pause_overlay(self):
+        overlay = pygame.Surface((WIDTH, PLAY_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 174))
+        self.screen.blit(overlay, (0, PLAY_TOP))
+        cy = PLAY_TOP + PLAY_HEIGHT // 2
+        self._text(self.t("paused"), "big", theme.ACCENT, center=(WIDTH // 2, cy - 46))
+        self._text(self.t("paused_hint"), "small", theme.GREY, center=(WIDTH // 2, cy + 8))
+        self._button(pygame.Rect(WIDTH // 2 - 95, cy + 42, 190, 50),
+                     self.t("resume"), "toggle_pause")
+
     def _draw_center_banner(self, text):
         overlay = pygame.Surface((WIDTH, PLAY_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 150))
