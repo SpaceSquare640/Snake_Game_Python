@@ -6,7 +6,7 @@ profiles, and an auto-setup bootstrap that installs everything it needs.
 
 **Languages:** [English](#english) · [繁體中文](#繁體中文) · [简体中文](#简体中文)
 
-> **Version 1.5.1** — see the full [CHANGELOG](CHANGELOG.md) · new here? read the [Guidebook](Guidebook.md).
+> **Version 1.5.2** — see the full [CHANGELOG](CHANGELOG.md) · new here? read the [Guidebook](Guidebook.md).
 
 > ▶ **Play in your browser (no install):** **https://spacesquare640.github.io/Snake_Game_Python/**
 > — a full HTML5 port lives on the [`HTML_Version`](https://github.com/SpaceSquare640/Snake_Game_Python/tree/HTML_Version) branch.

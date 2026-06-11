@@ -2,7 +2,7 @@
 import json
 
 
-APP_VERSION = "1.5.1"
+APP_VERSION = "1.5.2"
 GITHUB_REPO = "SpaceSquare640/Snake_Game_Python"
 
 

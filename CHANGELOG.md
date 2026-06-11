@@ -10,6 +10,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## English
 
+### [1.5.2] — 2026-06-12
+
+#### Changed (browser edition)
+- **Respects the CrazyGames mute switch** — the browser game now listens to the
+  portal's audio setting and silences all sound effects and music when the
+  player mutes the game on CrazyGames (restoring music when they un-mute).
+  No effect outside the portal.
+
 ### [1.5.1] — 2026-06-12
 
 #### Added
@@ -162,6 +170,13 @@ First public release.
 
 ## 繁體中文
 
+### [1.5.2] — 2026-06-12
+
+#### 變更（瀏覽器版）
+- **遵從 CrazyGames 靜音開關** — 瀏覽器版現在會監聽平台的音訊設定，當玩家在
+  CrazyGames 上將遊戲靜音時，會關閉所有音效與音樂（取消靜音後恢復音樂）。在平台
+  以外不受影響。
+
 ### [1.5.1] — 2026-06-12
 
 #### 新增
@@ -287,6 +302,13 @@ First public release.
 ---
 
 ## 简体中文
+
+### [1.5.2] — 2026-06-12
+
+#### 变更（浏览器版）
+- **遵从 CrazyGames 静音开关** — 浏览器版现在会监听平台的音频设置，当玩家在
+  CrazyGames 上将游戏静音时，会关闭所有音效与音乐（取消静音后恢复音乐）。在平台
+  以外不受影响。
 
 ### [1.5.1] — 2026-06-12
 
