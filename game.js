@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.4.0";
 const GITHUB_REPO = "SpaceSquare640/Snake_Game_Python";
 
 const CELL = 28;
@@ -104,6 +104,7 @@ function mulberry32(seed) {
 // Leaderboard size + replay cap + remappable movement keys (lowercase e.key).
 const LEADERBOARD_SIZE = 5;
 const REPLAY_LIMIT = 8;
+const TUT_GOAL = 3; // apples to eat in the tutorial's "eat" step
 const MOVE_DIRS = ["up", "down", "left", "right"];
 const DIR_VECTORS = { up: UP, down: DOWN, left: LEFT, right: RIGHT };
 const DEFAULT_KEYMAP = { up: "w", down: "s", left: "a", right: "d" };
@@ -511,6 +512,10 @@ class Game {
     this.replayByTick = {};
     this.lastReplay = null;
     this.currentReplay = null;
+    // Tutorial state.
+    this.tutStep = 0;
+    this.tutEaten = 0;
+    this.tutMoved = false;
 
     this.buttons = [];
     this.pointer = { x: -1, y: -1 };
@@ -658,8 +663,57 @@ class Game {
     for (let x = 0; x < 6; x++) this.obstacles.delete(key(x, midY));
   }
 
+  // -- Tutorial ---------------------------------------------------------
+  startTutorial() {
+    this.mode = CLASSIC;
+    this.replaying = false;
+    this.recording = null;
+    this.rng = Math.random;
+    this.obstacles = new Set();
+    this.tutStep = 0;
+    this.tutEaten = 0;
+    this.tutMoved = false;
+    const midY = Math.floor(ROWS / 2);
+    const color = SNAKE_COLORS[this.profile.colorIndex];
+    this.snakes = [new Snake([[4, midY], [3, midY], [2, midY]], RIGHT, color)];
+    this.food = this.spawnFood();
+    this.tickMs = 140;
+    this.moveAccum = 0;
+    this.state = STATE_TUTORIAL;
+  }
+  tutorialRespawn() {
+    const midY = Math.floor(ROWS / 2);
+    const color = SNAKE_COLORS[this.profile.colorIndex];
+    this.snakes = [new Snake([[4, midY], [3, midY], [2, midY]], RIGHT, color)];
+    this.food = this.spawnFood();
+  }
+  tutorialAdvance() {
+    const snake = this.snakes[0];
+    snake.step();
+    const [hx, hy] = snake.head;
+    if (!inBounds(hx, hy) || snake.has(hx, hy, 1)) {
+      this.sound.play("crash");
+      this.tutorialRespawn();
+      return;
+    }
+    if (this.food && hx === this.food[0] && hy === this.food[1]) {
+      snake.grow(1); this.tutEaten += 1; this.sound.play("eat");
+      this.food = this.spawnFood();
+    }
+    if (this.tutStep === 1 && this.tutEaten >= TUT_GOAL) this.tutStep = 2;
+  }
+  tutorialInput(dir) {
+    this.snakes[0].setDirection(dir);
+    if (this.tutStep === 0) { this.tutStep = 1; this.tutMoved = true; }
+  }
+
   // -- Update -----------------------------------------------------------
   update(dt) {
+    if (this.state === STATE_TUTORIAL) {
+      this.moveAccum += dt;
+      if (this.moveAccum >= this.tickMs) { this.moveAccum -= this.tickMs; this.tutorialAdvance(); }
+      return;
+    }
     if (this.state !== STATE_PLAY) return;
     this.moveAccum += dt;
     if (this.moveAccum < this.tickMs) return;
@@ -896,11 +950,13 @@ class Game {
       case "play_replay":
         if (arg >= 0 && arg < this.profile.replays.length) this.startReplay(this.profile.replays[arg]);
         break;
+      case "start_tutorial": this.startTutorial(); break;
       case "back_menu": this.state = STATE_MENU; break;
       case "sub_back": this.state = this.subReturn; break;
       case "to_menu": this.state = STATE_MENU; break;
       case "restart": this.startRound(); break;
       case "dir":
+        if (this.state === STATE_TUTORIAL) { this.tutorialInput(arg); break; }
         if (this.replaying) break;
         if (this.state === STATE_READY) this.state = STATE_PLAY;
         if (this.humanSnake()) this.recordInput(0, arg);
@@ -936,6 +992,7 @@ class Game {
       [STATE_CONTROLS]: () => this.keyControls(k),
       [STATE_LEADERBOARD]: () => { if (k === "Escape" || k === "m") this.state = this.subReturn; },
       [STATE_REPLAYS]: () => { if (k === "Escape" || k === "m") this.state = this.subReturn; },
+      [STATE_TUTORIAL]: () => this.keyTutorial(k),
       [STATE_READY]: () => this.keyReady(k),
       [STATE_PLAY]: () => this.keyPlay(k),
       [STATE_OVER]: () => this.keyOver(k),
@@ -954,6 +1011,24 @@ class Game {
     else if (k === "c" || k === "C") this.openSub(STATE_COLOR);
     else if (k === "l" || k === "L") this.openSub(STATE_LANG);
     else if (k === "n" || k === "N") { this.nameBuffer = this.profile.name; this.openSub(STATE_NAME); }
+    else if (k === "t" || k === "T") this.startTutorial();
+  }
+
+  keyTutorial(k) {
+    if (k === "Escape" || k === "m" || k === "M") { this.state = STATE_MENU; return; }
+    if (k === " ") {
+      if (this.tutStep === 2) this.tutStep = 3;
+      else if (this.tutStep === 3) this.state = STATE_MENU;
+      return;
+    }
+    let dir = null;
+    const lk = k.length === 1 ? k.toLowerCase() : k;
+    for (const d of MOVE_DIRS) if (lk === this.profile.keymap[d]) { dir = DIR_VECTORS[d]; break; }
+    if (!dir) {
+      const arrows = { ArrowUp: UP, ArrowDown: DOWN, ArrowLeft: LEFT, ArrowRight: RIGHT };
+      dir = arrows[k];
+    }
+    if (dir) this.tutorialInput(dir);
   }
 
   keySettings(k) {
@@ -1080,6 +1155,12 @@ class Game {
       case STATE_REBIND: this.drawRebind(); break;
       case STATE_LEADERBOARD: this.drawLeaderboard(); break;
       case STATE_REPLAYS: this.drawReplays(); break;
+      case STATE_TUTORIAL:
+        this.drawPlayArea();
+        this.drawTutorialHud();
+        this.drawControlBar();
+        this.drawTutorialBanner();
+        break;
       default:
         this.drawPlayArea();
         this.drawHud();
@@ -1168,8 +1249,8 @@ class Game {
 
     const margin = 50, gap = 22;
     const bw = (WIDTH - 2 * margin - gap) / 2;
-    const bh = 64, srowH = 54;
-    const blockH = 3 * bh + 2 * gap + 28 + srowH;
+    const bh = 64, srowH = 54, trowH = 42;
+    const blockH = 3 * bh + 2 * gap + 28 + srowH + 16 + trowH;
     const bandTop = 178, bandBottom = HEIGHT - 134;
     const startX = margin;
     const startY = bandTop + Math.max(0, (bandBottom - bandTop - blockH) / 2);
@@ -1196,6 +1277,11 @@ class Game {
       this.button({ x: startX + i * (tw + ug), y: rowY, w: tw, h: srowH,
         label: u[0], action: u[1], font: 16, badge: u[2] });
     });
+
+    // Slim full-width tutorial row for newcomers.
+    const tutY = rowY + srowH + 16;
+    this.button({ x: startX, y: tutY, w: WIDTH - 2 * margin, h: trowH,
+      label: this.t("tutorial_btn"), action: "start_tutorial", font: 16, badge: "T" });
 
     const cardTop = HEIGHT - 100, sepY = cardTop - 22;
     const ctx = this.ctx;
@@ -1489,6 +1575,38 @@ class Game {
     }
   }
 
+  drawTutorialHud() {
+    const ctx = this.ctx;
+    ctx.fillStyle = C.black;
+    ctx.fillRect(0, 0, WIDTH, HUD_HEIGHT);
+    ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, HUD_HEIGHT); ctx.lineTo(WIDTH, HUD_HEIGHT); ctx.stroke();
+    this.text(this.t("tut_title"), 22, C.accent, 16, 22, "left");
+    if (this.tutStep === 1) {
+      const remaining = Math.max(0, TUT_GOAL - this.tutEaten);
+      this.text(this.t("tut_eat", { n: remaining }), 22, C.white, 16, 44, "left");
+    }
+    this.text(this.t("tut_skip"), 15, C.dim, WIDTH - 180, 18, "left");
+  }
+
+  drawTutorialBanner() {
+    let lines;
+    if (this.tutStep === 0) lines = [this.t("tut_move")];
+    else if (this.tutStep === 1) lines = [this.t("tut_eat", { n: Math.max(0, TUT_GOAL - this.tutEaten) })];
+    else if (this.tutStep === 2) lines = [this.t("tut_avoid"), this.t("tut_continue")];
+    else lines = [this.t("tut_done"), this.t("tut_continue")];
+    const ctx = this.ctx;
+    const stripH = 46 + 28 * (lines.length - 1);
+    const x = 20, y = PLAY_TOP + 14, w = WIDTH - 40;
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    this.roundRect(x, y, w, stripH, 10); ctx.fill();
+    ctx.strokeStyle = C.accent; ctx.lineWidth = 1;
+    this.roundRect(x, y, w, stripH, 10); ctx.stroke();
+    lines.forEach((line, i) => {
+      this.text(line, 22, i === 0 ? C.white : C.grey, WIDTH / 2, y + 24 + i * 28);
+    });
+  }
+
   drawControlBar() {
     const ctx = this.ctx;
     ctx.fillStyle = C.black;
@@ -1498,7 +1616,8 @@ class Game {
 
     this.button({ x: 20, y: CONTROL_TOP + 36, w: 130, h: 44, label: this.t("menu_btn"), action: "to_menu" });
 
-    if ((this.state === STATE_READY || this.state === STATE_PLAY) && !this.replaying && this.humanSnake()) {
+    const dpadStates = [STATE_READY, STATE_PLAY, STATE_TUTORIAL];
+    if (dpadStates.includes(this.state) && !this.replaying && this.humanSnake()) {
       this.drawDpad();
     } else {
       const note = this.replaying ? this.t("replay_label") : this.t("watching");
