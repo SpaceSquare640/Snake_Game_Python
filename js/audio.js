@@ -5,13 +5,22 @@ export class SoundManager {
     this.profile = profile;
     this.ctx = null;
     this.musicTimer = null;
+    this.muted = false; // driven by the CrazyGames portal's mute toggle
     try {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     } catch (e) { this.ctx = null; }
   }
+
+  // Honour the platform mute switch: silence everything, restoring music if
+  // the player had it on when they un-mute.
+  setMuted(on) {
+    this.muted = !!on;
+    if (this.muted) this.stopMusic();
+    else if (this.profile.music) this.startMusic();
+  }
   resume() {
     if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
-    if (this.profile.music && !this.musicTimer) this.startMusic();
+    if (this.profile.music && !this.muted && !this.musicTimer) this.startMusic();
   }
   _beep(freq, ms, type, vol) {
     if (!this.ctx) return;
@@ -26,7 +35,7 @@ export class SoundManager {
     osc.start(t); osc.stop(t + ms / 1000 + 0.02);
   }
   play(name) {
-    if (!this.ctx || !this.profile.sound) return;
+    if (!this.ctx || !this.profile.sound || this.muted) return;
     if (name === "eat") this._beep(880, 70, "square", 0.18);
     else if (name === "select") this._beep(520, 45, "square", 0.13);
     else if (name === "crash") this._beep(150, 240, "square", 0.2);
@@ -36,7 +45,7 @@ export class SoundManager {
     }
   }
   startMusic() {
-    if (!this.ctx) return;
+    if (!this.ctx || this.muted) return;
     this.stopMusic();
     const notes = [392, 523, 659, 523, 440, 587, 440, 0,
                    349, 523, 659, 784, 659, 523, 440, 0];

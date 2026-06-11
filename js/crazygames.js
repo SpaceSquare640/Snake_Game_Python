@@ -18,6 +18,8 @@ class CrazyGamesAdapter {
     this.adInProgress = false;
     this.lastAdTs = 0;
     this.minAdIntervalMs = 70 * 1000; // CrazyGames asks for a gap between ads
+    this.muted = false;               // mirrors the portal's mute-audio setting
+    this._muteHandlers = [];
   }
 
   // True only inside the real portal, where requesting ads is appropriate.
@@ -33,9 +35,32 @@ class CrazyGamesAdapter {
       await sdk.init();
       this.ready = true;
       this.environment = sdk.environment || "local";
+      this._initMute();
     } catch (e) {
       this.ready = false;
     }
+  }
+
+  // -- Mute (the portal's audio toggle) ---------------------------------
+  // CrazyGames exposes the player's mute preference via game.settings and
+  // notifies us when it changes. We mirror it and fan out to listeners so the
+  // game can silence its WebAudio output (which the portal can't mute for us).
+  _initMute() {
+    try {
+      this.muted = !!(this.sdk.game.settings && this.sdk.game.settings.muteAudio);
+      this.sdk.game.addSettingsChangeListener(() => {
+        const m = !!(this.sdk.game.settings && this.sdk.game.settings.muteAudio);
+        if (m === this.muted) return;
+        this.muted = m;
+        this._muteHandlers.forEach((h) => { try { h(m); } catch (e) { /* */ } });
+      });
+    } catch (e) { /* older SDK shape — leave unmuted */ }
+  }
+
+  // Register a mute-state listener; fires immediately with the current state.
+  onMuteChange(fn) {
+    this._muteHandlers.push(fn);
+    try { fn(this.muted); } catch (e) { /* */ }
   }
 
   // -- Loading lifecycle (tells the portal when our assets are ready) ----

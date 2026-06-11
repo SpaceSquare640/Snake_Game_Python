@@ -39,6 +39,7 @@ export class Game {
     this.profile = loadProfile();
     applyTheme(this.profile.theme);
     this.sound = new SoundManager(this.profile);
+    CG.onMuteChange((m) => this.sound.setMuted(m)); // honour the portal mute switch
     this.state = STATE_MENU;
     this.mode = CLASSIC;
     this.subReturn = STATE_MENU;
