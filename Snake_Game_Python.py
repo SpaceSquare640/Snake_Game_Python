@@ -14,6 +14,7 @@ Features
 * Procedural sound effects and a background-music toggle (no audio files).
 * Per-mode leaderboard (top 5) and remappable movement keys.
 * Deterministic replay system (seeded RNG + input log) with a Replays page.
+* Interactive step-by-step tutorial for new players.
 * Three languages: English (default), Traditional Chinese, Simplified Chinese.
 * Player profiles with a persistent, XP-based level.
 * Nine selectable snake colors.
@@ -133,7 +134,7 @@ import pygame
 # ---------------------------------------------------------------------------
 # Version / update check
 # ---------------------------------------------------------------------------
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.4.0"
 GITHUB_REPO = "SpaceSquare640/Snake_Game_Python"
 
 
@@ -368,7 +369,7 @@ TRANSLATIONS = {
         "replays_btn": "Replays", "replays_title": "Replays",
         "watch_replay": "Watch replay", "replay_again": "Replay again",
         "replay_label": "REPLAY", "no_replays": "No replays yet",
-        "tutorial_btn": "▶  How to play (Tutorial)", "tut_title": "Tutorial",
+        "tutorial_btn": "How to play  ·  Tutorial", "tut_title": "Tutorial",
         "tut_move": "Use WASD / Arrows / the D-pad to move",
         "tut_eat": "Now eat the apples —  {n}  to go",
         "tut_avoid": "Avoid walls, obstacles, and yourself!",
@@ -986,6 +987,11 @@ class SnakeGame:
         self.last_replay = None          # the most recent finished recording
         self.current_replay = None       # the recording currently being watched
 
+        # Tutorial state.
+        self.tut_step = 0
+        self.tut_eaten = 0
+        self.tut_moved = False
+
         # Background update check.
         self.update_state = "checking"   # checking | latest | outdated | unknown
         self.latest_version = ""
@@ -1154,8 +1160,62 @@ class SnakeGame:
         for x in range(0, 6):
             self.obstacles.discard((x, mid_y))
 
+    # -- Tutorial -----------------------------------------------------------
+    TUT_GOAL = 3  # apples to eat in the "eat" step
+
+    def start_tutorial(self):
+        self.mode = CLASSIC
+        self.replaying = False
+        self.recording = None
+        self.rng = random.Random()
+        self.obstacles = set()
+        self.tut_step = 0
+        self.tut_eaten = 0
+        self.tut_moved = False
+        mid_y = ROWS // 2
+        color = SNAKE_COLORS[self.profile.color_index]
+        self.snakes = [Snake([(4, mid_y), (3, mid_y), (2, mid_y)], RIGHT, color)]
+        self.food = self._spawn_food()
+        self.tick_ms = 140
+        self.move_accum = 0.0
+        self.state = STATE_TUTORIAL
+
+    def _tutorial_respawn(self):
+        mid_y = ROWS // 2
+        color = SNAKE_COLORS[self.profile.color_index]
+        self.snakes = [Snake([(4, mid_y), (3, mid_y), (2, mid_y)], RIGHT, color)]
+        self.food = self._spawn_food()
+
+    def _tutorial_advance(self):
+        snake = self.snakes[0]
+        snake.step()
+        head = snake.head
+        if not _in_bounds(head) or head in snake.body[1:]:
+            self.sound.play("crash")
+            self._tutorial_respawn()  # forgiving: beginners just restart
+            return
+        if self.food and head == self.food:
+            snake.grow(1)
+            self.tut_eaten += 1
+            self.sound.play("eat")
+            self.food = self._spawn_food()
+        if self.tut_step == 1 and self.tut_eaten >= self.TUT_GOAL:
+            self.tut_step = 2
+
+    def _tutorial_input(self, direction):
+        self.snakes[0].set_direction(direction)
+        if self.tut_step == 0:
+            self.tut_step = 1  # first move advances past the "move" step
+            self.tut_moved = True
+
     # -- Update -------------------------------------------------------------
     def update(self, dt):
+        if self.state == STATE_TUTORIAL:
+            self.move_accum += dt
+            if self.move_accum >= self.tick_ms:
+                self.move_accum -= self.tick_ms
+                self._tutorial_advance()
+            return
         if self.state != STATE_PLAY:
             return
         self.move_accum += dt
@@ -1365,6 +1425,7 @@ class SnakeGame:
             STATE_CONTROLS: self._key_controls,
             STATE_LEADERBOARD: self._key_simple_back,
             STATE_REPLAYS: self._key_simple_back,
+            STATE_TUTORIAL: self._key_tutorial,
             STATE_READY: self._key_ready,
             STATE_PLAY: self._key_play,
             STATE_OVER: self._key_over,
@@ -1426,6 +1487,8 @@ class SnakeGame:
             if 0 <= arg < len(self.profile.replays):
                 self.start_replay(self.profile.replays[arg])
             return
+        if action == "start_tutorial":
+            self.start_tutorial(); return
         if action == "start_mode":
             self.mode = arg
             self.start_round()
@@ -1457,6 +1520,9 @@ class SnakeGame:
         elif action == "quit":
             self.running = False
         elif action == "dir":
+            if self.state == STATE_TUTORIAL:
+                self._tutorial_input(arg)
+                return
             if self.replaying:
                 return
             if self.state == STATE_READY:
@@ -1486,6 +1552,8 @@ class SnakeGame:
         elif key == pygame.K_n:
             self.name_buffer = self.profile.name
             self._open_sub(STATE_NAME)
+        elif key == pygame.K_t:
+            self.start_tutorial()
         elif key == pygame.K_ESCAPE:
             self.running = False
 
@@ -1551,6 +1619,31 @@ class SnakeGame:
     def _key_simple_back(self, event):
         if event.key in (pygame.K_ESCAPE, pygame.K_m):
             self.state = self.sub_return
+
+    def _key_tutorial(self, event):
+        key = event.key
+        if key in (pygame.K_ESCAPE, pygame.K_m):
+            self.state = STATE_MENU
+            return
+        if key == pygame.K_SPACE:
+            # SPACE advances the two informational steps.
+            if self.tut_step == 2:
+                self.tut_step = 3
+            elif self.tut_step == 3:
+                self.state = STATE_MENU
+            return
+        # Movement: remappable keymap + arrows both work.
+        direction = None
+        for d in MOVE_DIRS:
+            if key == self.profile.keymap[d]:
+                direction = DIR_VECTORS[d]
+                break
+        if direction is None:
+            arrows = {pygame.K_UP: UP, pygame.K_DOWN: DOWN,
+                      pygame.K_LEFT: LEFT, pygame.K_RIGHT: RIGHT}
+            direction = arrows.get(key)
+        if direction is not None:
+            self._tutorial_input(direction)
 
     def _key_ai_menu(self, event):
         key = event.key
@@ -1664,6 +1757,11 @@ class SnakeGame:
         }
         if self.state in screens:
             screens[self.state]()
+        elif self.state == STATE_TUTORIAL:
+            self._draw_play_area()
+            self._draw_tutorial_hud()
+            self._draw_control_bar()
+            self._draw_tutorial_banner()
         else:
             self._draw_play_area()
             self._draw_hud()
@@ -1769,8 +1867,8 @@ class SnakeGame:
         # Wider side margins so nothing hugs the edges.
         margin, gap = 50, 22
         bw = (WIDTH - 2 * margin - gap) // 2
-        bh, srow_h = 64, 54
-        block_h = 3 * bh + 2 * gap + 28 + srow_h
+        bh, srow_h, trow_h = 64, 54, 42
+        block_h = 3 * bh + 2 * gap + 28 + srow_h + 16 + trow_h
         band_top, band_bottom = 178, HEIGHT - 134
         start_x = margin
         start_y = band_top + max(0, (band_bottom - band_top - block_h) // 2)
@@ -1793,6 +1891,11 @@ class SnakeGame:
         for i, (label, action, badge) in enumerate(util):
             self._button(pygame.Rect(start_x + i * (tw + ug), row_y, tw, srow_h),
                          label, action, font="tiny", badge=badge)
+
+        # Slim full-width tutorial row for newcomers.
+        tut_y = row_y + srow_h + 16
+        self._button(pygame.Rect(start_x, tut_y, WIDTH - 2 * margin, trow_h),
+                     self.t("tutorial_btn"), "start_tutorial", font="tiny", badge="T")
 
         # A thin separator divides the menu from the profile card.
         card_top = HEIGHT - 100
@@ -2094,6 +2197,38 @@ class SnakeGame:
                 self._text(f"{self.t('stage')}: {self.stage}", "small", WHITE,
                            topleft=(320, 34))
 
+    def _draw_tutorial_hud(self):
+        bar = pygame.Rect(0, 0, WIDTH, HUD_HEIGHT)
+        pygame.draw.rect(self.screen, BLACK, bar)
+        pygame.draw.line(self.screen, GRID_LINE, (0, HUD_HEIGHT), (WIDTH, HUD_HEIGHT))
+        self._text(self.t("tut_title"), "small", ACCENT, topleft=(16, 10))
+        if self.tut_step == 1:
+            remaining = max(0, self.TUT_GOAL - self.tut_eaten)
+            self._text(self.t("tut_eat", n=remaining), "small", WHITE, topleft=(16, 34))
+        self._text(self.t("tut_skip"), "tiny", DIM, topleft=(WIDTH - 180, 14))
+
+    def _draw_tutorial_banner(self):
+        """Step-driven instruction strip across the top of the play field."""
+        if self.tut_step == 0:
+            lines = [self.t("tut_move")]
+        elif self.tut_step == 1:
+            remaining = max(0, self.TUT_GOAL - self.tut_eaten)
+            lines = [self.t("tut_eat", n=remaining)]
+        elif self.tut_step == 2:
+            lines = [self.t("tut_avoid"), self.t("tut_continue")]
+        else:
+            lines = [self.t("tut_done"), self.t("tut_continue")]
+        strip_h = 46 + 28 * (len(lines) - 1)
+        strip = pygame.Rect(20, PLAY_TOP + 14, WIDTH - 40, strip_h)
+        overlay = pygame.Surface((strip.w, strip.h), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 175))
+        self.screen.blit(overlay, strip.topleft)
+        pygame.draw.rect(self.screen, ACCENT, strip, 1, border_radius=10)
+        for i, line in enumerate(lines):
+            color = WHITE if i == 0 else GREY
+            self._text(line, "small", color,
+                       center=(strip.centerx, strip.y + 24 + i * 28))
+
     # -- On-screen control bar (D-pad + Menu) ------------------------------
     def _draw_control_bar(self):
         bar = pygame.Rect(0, CONTROL_TOP, WIDTH, CONTROL_HEIGHT)
@@ -2105,7 +2240,8 @@ class SnakeGame:
                      self.t("menu_btn"), "to_menu")
 
         # D-pad (right) — only when a human is actively controlling (not replay).
-        if (self.state in (STATE_READY, STATE_PLAY) and not self.replaying
+        if (self.state in (STATE_READY, STATE_PLAY, STATE_TUTORIAL)
+                and not self.replaying
                 and self._human_snake() is not None):
             self._draw_dpad()
         else:

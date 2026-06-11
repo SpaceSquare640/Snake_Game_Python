@@ -10,6 +10,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## English
 
+### [1.4.0] — 2026-06-11
+
+#### Added
+- **Interactive tutorial** — a guided, step-by-step lesson for newcomers: move
+  with WASD / Arrows / the D-pad, eat a few apples, learn to avoid crashing.
+  It's forgiving (crashing just respawns you) and reachable from a **How to
+  play** button on the main menu (or press **T**).
+
 ### [1.3.0] — 2026-06-11
 
 #### Added
@@ -104,6 +112,13 @@ First public release.
 
 ## 繁體中文
 
+### [1.4.0] — 2026-06-11
+
+#### 新增
+- **互動教學** — 為新手設計的逐步引導：用 WASD／方向鍵／畫面方向鍵移動、吃下幾顆
+  蘋果、學習避免撞死。教學很寬容（撞到只會重新開始），可從主選單的 **新手教學**
+  按鈕進入（或按 **T**）。
+
 ### [1.3.0] — 2026-06-11
 
 #### 新增
@@ -182,6 +197,13 @@ First public release.
 
 ## 简体中文
 
+### [1.4.0] — 2026-06-11
+
+#### 新增
+- **交互式教学** — 为新手设计的逐步引导：用 WASD／方向键／画面方向键移动、吃下几颗
+  苹果、学习避免撞死。教学很宽容（撞到只会重新开始），可从主菜单的 **新手教学**
+  按钮进入（或按 **T**）。
+
 ### [1.3.0] — 2026-06-11
 
 #### 新增
@@ -256,6 +278,7 @@ First public release.
 - **自定义许可协议**，附带署名要求（创作者：SpaceSquare、Claude Code；拥有者：
   SpaceSquare），并提供三种语言版本。
 
+[1.4.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.4.0
 [1.3.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.3.0
 [1.2.0]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.2.0
 [1.1.1]: https://github.com/SpaceSquare640/Snake_Game_Python/releases/tag/v1.1.1
