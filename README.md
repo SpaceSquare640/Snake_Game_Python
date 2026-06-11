@@ -41,6 +41,10 @@ The same game as the desktop edition:
   (WebAudio), a **leaderboard** (top-5 per mode), **key remapping**, an
   optional FPS counter, a **replay system** (deterministic, seeded), and an
   **interactive tutorial** for new players.
+- **Pause** (`P` / ⏸ button) with **auto-pause** when the tab is hidden,
+  **high-DPI crisp rendering**, responsive scaling that fits any screen, and a
+  loading splash — wired for the **CrazyGames** portal (the SDK no-ops
+  elsewhere, so the same build runs anywhere).
 - **3 languages** — English, Traditional Chinese, Simplified Chinese.
 - **A toolbox of snake AIs** — BFS with a survival fallback, a perfect
   **Hamiltonian-cycle** fill, plus **A\***, **simulated annealing**, **greedy
@@ -53,7 +57,7 @@ The same game as the desktop edition:
 - **Mouse / touch:** click menu items, buttons, or the on-screen D-pad.
 - **`1`–`6`** select a mode; **`A`/`S`** open the All-AI / Settings menus.
 - **WASD** or **Arrow keys** (and the D-pad) to move; **Arrows** for Player 2 in Battle.
-- **SPACE** start / restart · **M** menu · **ESC** back.
+- **P** pause / resume · **SPACE** start / restart · **M** menu · **ESC** back.
 
 ---
 
@@ -87,6 +91,9 @@ python -m http.server 8099
   支援滑鼠／觸控。
 - **佈景主題**（深色／霓虹／復古 CRT／極簡）、**音效＋音樂**（WebAudio）、**排行榜**
   （各模式前 5 名）、**按鍵重新對應**，以及可選的 FPS 顯示。
+- **暫停**（`P` ／ ⏸ 按鈕），切到背景分頁時會**自動暫停**；**高 DPI 清晰渲染**、能
+  填滿任何螢幕的響應式縮放，以及載入畫面 —— 已為 **CrazyGames** 平台接好（SDK 在其他
+  環境會自動空轉，同一份程式到處都能跑）。
 - **3 種語言** — 英文、繁體中文、簡體中文。
 - **整套蛇 AI 工具箱** — BFS 與生存後備策略、完美 **漢米頓迴圈** 填滿，以及 **A\***、
   **模擬退火**、**貪婪最佳優先**、**DFS／隨機遊走** 漂移與對抗式 **Minimax**。
@@ -98,7 +105,7 @@ python -m http.server 8099
 - **滑鼠／觸控：** 點選選單項目、按鈕或畫面方向鍵。
 - **`1`–`6`** 選擇模式；**`A`／`S`** 開啟全 AI／設定選單。
 - **WASD** 或 **方向鍵**（及 D-pad）移動；對戰模式玩家2 用 **方向鍵**。
-- **空白鍵** 開始／重新開始 · **M** 選單 · **ESC** 返回。
+- **P** 暫停／繼續 · **空白鍵** 開始／重新開始 · **M** 選單 · **ESC** 返回。
 
 ---
 
@@ -132,6 +139,9 @@ python -m http.server 8099
   支持鼠标／触控。
 - **界面主题**（深色／霓虹／复古 CRT／极简）、**音效＋音乐**（WebAudio）、**排行榜**
   （各模式前 5 名）、**按键重新映射**，以及可选的 FPS 显示。
+- **暂停**（`P` ／ ⏸ 按钮），切到后台标签页时会**自动暂停**；**高 DPI 清晰渲染**、能
+  填满任何屏幕的响应式缩放，以及加载画面 —— 已为 **CrazyGames** 平台接好（SDK 在其他
+  环境会自动空转，同一份程序到处都能跑）。
 - **3 种语言** — 英文、繁体中文、简体中文。
 - **整套蛇 AI 工具箱** — BFS 与生存后备策略、完美 **哈密顿回路** 填满，以及 **A\***、
   **模拟退火**、**贪婪最佳优先**、**DFS／随机游走** 漂移与对抗式 **Minimax**。
@@ -143,7 +153,7 @@ python -m http.server 8099
 - **鼠标／触控：** 点选菜单项目、按钮或画面方向键。
 - **`1`–`6`** 选择模式；**`A`／`S`** 打开全 AI／设置菜单。
 - **WASD** 或 **方向键**（及 D-pad）移动；对战模式玩家2 用 **方向键**。
-- **空格键** 开始／重新开始 · **M** 菜单 · **ESC** 返回。
+- **P** 暂停／继续 · **空格键** 开始／重新开始 · **M** 菜单 · **ESC** 返回。
 
 ---
 

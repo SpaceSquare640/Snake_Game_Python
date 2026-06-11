@@ -2,16 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Snake — Snake_Game_Python</title>
   <meta name="description" content="A multi-mode, multi-language Snake game with BFS &amp; Hamiltonian-cycle AI. Browser edition of Snake_Game_Python." />
   <link rel="icon" type="image/png" href="assets/icon.png" />
   <link rel="stylesheet" href="style.css" />
+  <!-- CrazyGames JS SDK. Loads from their CDN on the portal; harmlessly
+       absent elsewhere (the js/crazygames.js adapter no-ops when missing). -->
+  <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 </head>
 <body>
   <div id="stage">
     <canvas id="game" width="672" height="782" aria-label="Snake game"></canvas>
   </div>
+
+  <!-- Loading splash shown until fonts are ready and the game has booted. -->
+  <div id="loader" role="status" aria-live="polite">
+    <div class="loader-snake">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div class="loader-title">SNAKE</div>
+    <div class="loader-bar"><i></i></div>
+    <div class="loader-tip">Loading…</div>
+  </div>
+
   <noscript>This game needs JavaScript enabled.</noscript>
   <script type="module" src="js/main.js"></script>
 </body>

@@ -1,6 +1,6 @@
 /* App version and the GitHub release update check. */
 
-export const APP_VERSION = "1.5.0";
+export const APP_VERSION = "1.5.1";
 export const GITHUB_REPO = "SpaceSquare640/Snake_Game_Python";
 
 // Parse "v1.2.0" into a zero-padded, lexically-comparable string.

@@ -25,11 +25,17 @@ import {
   greedyDirection, astarDirection, annealDirection, driftDirection, minimaxDirection,
 } from "./ai.js";
 import { RenderMixin } from "./render.js";
+import { CG } from "./crazygames.js";
 
 export class Game {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
+    this.dpr = 1;
+    this.setupHiDPI();
+    this.paused = false;
+    this.animMs = 0;       // free-running clock for purely cosmetic animation
+    this._gpActive = false; // tracks CrazyGames gameplayStart/Stop edges
     this.profile = loadProfile();
     applyTheme(this.profile.theme);
     this.sound = new SoundManager(this.profile);
@@ -71,7 +77,73 @@ export class Game {
     this.checkUpdate();
 
     this.bindInput();
+    this.bindLifecycle();
     requestAnimationFrame((ts) => this.loop(ts));
+  }
+
+  // -- Display / responsiveness ----------------------------------------
+  // Size the canvas backing store by devicePixelRatio so everything stays
+  // crisp on high-DPI screens. CSS still controls the on-screen size (a fixed
+  // 672:782 box that scales to fit), and pointer mapping stays in logical
+  // coordinates, so nothing else has to change.
+  setupHiDPI() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (dpr === this.dpr && this.canvas.width === Math.round(WIDTH * dpr)) return;
+    this.dpr = dpr;
+    this.canvas.width = Math.round(WIDTH * dpr);
+    this.canvas.height = Math.round(HEIGHT * dpr);
+  }
+
+  // -- Pause / lifecycle -----------------------------------------------
+  // CrazyGames (and good manners) require the game to pause when the tab is
+  // hidden or loses focus. We auto-pause but wait for an explicit resume so the
+  // player is never caught mid-move on return.
+  bindLifecycle() {
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) this.pauseGame();
+    });
+    window.addEventListener("blur", () => this.pauseGame());
+    window.addEventListener("resize", () => this.setupHiDPI());
+  }
+
+  pausable() { return this.state === STATE_PLAY || this.state === STATE_TUTORIAL; }
+
+  pauseGame() {
+    if (this.paused || !this.pausable()) return;
+    this.paused = true;
+    this.sound.stopMusic();
+  }
+
+  resumeGame() {
+    if (!this.paused) return;
+    this.paused = false;
+    this.sound.resume();
+  }
+
+  togglePause() {
+    if (this.paused) this.resumeGame();
+    else this.pauseGame();
+  }
+
+  // Edge-trigger the CrazyGames gameplay lifecycle from the actual play state.
+  syncGameplay() {
+    const active = this.pausable() && !this.paused;
+    if (active && !this._gpActive) { this._gpActive = true; CG.gameplayStart(); }
+    else if (!active && this._gpActive) { this._gpActive = false; CG.gameplayStop(); }
+  }
+
+  // Offer a midgame ad at game over for rounds a human actually played. The
+  // adapter throttles and no-ops off the CrazyGames portal, so this is safe to
+  // call freely; we just mute while an ad is on screen.
+  maybeShowAd() {
+    if (this.replaying || !this.snakes.length || this.snakes[0].isAi) return;
+    CG.requestMidgame({
+      onStart: () => { this._adActive = true; this.sound.stopMusic(); },
+      onResume: () => {
+        this._adActive = false;
+        if (this.profile.music) this.sound.resume();
+      },
+    });
   }
 
   t(k, vars) {
@@ -266,6 +338,7 @@ export class Game {
 
   // -- Update -----------------------------------------------------------
   update(dt) {
+    if (this.paused) return;
     if (this.state === STATE_TUTORIAL) {
       this.moveAccum += dt;
       if (this.moveAccum >= this.tickMs) { this.moveAccum -= this.tickMs; this.tutorialAdvance(); }
@@ -449,6 +522,7 @@ export class Game {
     this._saveRecording(score);
     saveProfile(this.profile);
     this.state = STATE_OVER;
+    this.maybeShowAd();
   }
 
   _saveRecording(score) {
@@ -472,7 +546,7 @@ export class Game {
 
   // -- Input ------------------------------------------------------------
   bindInput() {
-    window.addEventListener("keydown", (e) => { this.sound.resume(); this.onKey(e); });
+    window.addEventListener("keydown", (e) => { if (!this.paused) this.sound.resume(); this.onKey(e); });
     const toLocal = (clientX, clientY) => {
       const r = this.canvas.getBoundingClientRect();
       return {
@@ -485,7 +559,7 @@ export class Game {
     });
     this.canvas.addEventListener("mouseleave", () => { this.pointer = { x: -1, y: -1 }; });
     this.canvas.addEventListener("mousedown", (e) => {
-      this.sound.resume();
+      if (!this.paused) this.sound.resume();
       const p = toLocal(e.clientX, e.clientY);
       const b = this.buttonAt(p.x, p.y);
       this.mouseDown = b ? [b.action, b.arg] : null;
@@ -500,7 +574,7 @@ export class Game {
     });
     this.canvas.addEventListener("touchstart", (e) => {
       e.preventDefault();
-      this.sound.resume();
+      if (!this.paused) this.sound.resume();
       const tp = e.changedTouches[0];
       const p = toLocal(tp.clientX, tp.clientY);
       this.pointer = p;
@@ -547,6 +621,7 @@ export class Game {
         if (arg >= 0 && arg < this.profile.replays.length) this.startReplay(this.profile.replays[arg]);
         break;
       case "start_tutorial": this.startTutorial(); break;
+      case "toggle_pause": this.togglePause(); break;
       case "back_menu": this.state = STATE_MENU; break;
       case "sub_back": this.state = this.subReturn; break;
       case "to_menu": this.state = STATE_MENU; break;
@@ -611,6 +686,11 @@ export class Game {
   }
 
   keyTutorial(k) {
+    if (this.paused) {
+      if (k === "Escape" || k === "m" || k === "M") { this.resumeGame(); this.state = STATE_MENU; }
+      else this.resumeGame();
+      return;
+    }
     if (k === "Escape" || k === "m" || k === "M") { this.state = STATE_MENU; return; }
     if (k === " ") {
       if (this.tutStep === 2) this.tutStep = 3;
@@ -683,10 +763,16 @@ export class Game {
   }
 
   keyPlay(k) {
+    if (this.paused) {
+      if (k === " " || k === "p" || k === "P") this.resumeGame();
+      else if (k === "m" || k === "M" || k === "Escape") { this.resumeGame(); this.state = STATE_MENU; }
+      return;
+    }
     if (this.replaying) {
       if (k === "m" || k === "M" || k === "Escape") this.state = STATE_MENU;
       return; // no live control during playback
     }
+    if (k === "p" || k === "P") { this.pauseGame(); return; }
     if (k === "m" || k === "M" || k === "Escape") { this.state = STATE_MENU; return; }
     if (!this.snakes.length) return;
     const p1 = this.snakes[0];
@@ -728,6 +814,9 @@ export class Game {
     this.lastTs = ts;
     if (dt > 0) this.fps = this.fps ? this.fps * 0.9 + (1000 / dt) * 0.1 : 1000 / dt;
     if (this.levelUpFlash > 0) this.levelUpFlash -= dt;
+    this.animMs += dt;
+    this.setupHiDPI();   // cheap no-op unless the DPR actually changed
+    this.syncGameplay();
     this.update(dt);
     this.draw();
     requestAnimationFrame((t) => this.loop(t));

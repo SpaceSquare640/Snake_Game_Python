@@ -31,6 +31,8 @@ export const RenderMixin = {
   draw() {
     this.buttons = [];
     const ctx = this.ctx;
+    // Map the logical 672x782 coordinate space onto the high-DPI backing store.
+    ctx.setTransform(this.dpr || 1, 0, 0, this.dpr || 1, 0, 0);
     ctx.fillStyle = C.black;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
     switch (this.state) {
@@ -59,9 +61,48 @@ export const RenderMixin = {
         if (this.state === STATE_READY) this.drawCenterBanner(this.t("press_space"));
         else if (this.state === STATE_OVER) this.drawGameOver();
     }
+    if (this.paused && (this.state === STATE_PLAY || this.state === STATE_TUTORIAL)) {
+      this.drawPauseOverlay();
+    }
     if (this.profile.showFps) {
       this.text(Math.round(this.fps || 0) + " FPS", 15, C.dim, 12, HEIGHT - 14, "left");
     }
+  },
+
+  // -- Pause ------------------------------------------------------------
+  drawPauseButton() {
+    const w = 42, h = 30, x = WIDTH - w - 14, y = 9;
+    const btn = { x, y, w, h, action: "toggle_pause", arg: null };
+    const ctx = this.ctx;
+    const hover = this.hovered(btn);
+    ctx.save();
+    if (hover) { ctx.shadowColor = C.accent; ctx.shadowBlur = 14; }
+    ctx.fillStyle = hover ? C.panelHover : C.panel;
+    this.roundRect(x, y, w, h, 7); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = hover ? C.accent : C.border; ctx.lineWidth = 1;
+    this.roundRect(x, y, w, h, 7); ctx.stroke();
+    const col = hover ? C.accent : C.white;
+    ctx.fillStyle = col;
+    if (this.paused) {
+      ctx.beginPath();
+      ctx.moveTo(x + 15, y + 8); ctx.lineTo(x + 15, y + h - 8); ctx.lineTo(x + 29, y + h / 2);
+      ctx.closePath(); ctx.fill();
+    } else {
+      ctx.fillRect(x + 15, y + 8, 4, h - 16);
+      ctx.fillRect(x + 23, y + 8, 4, h - 16);
+    }
+    this.buttons.push(btn);
+  },
+
+  drawPauseOverlay() {
+    const ctx = this.ctx;
+    ctx.fillStyle = "rgba(0,0,0,0.68)";
+    ctx.fillRect(0, PLAY_TOP, WIDTH, PLAY_HEIGHT);
+    const cy = PLAY_TOP + PLAY_HEIGHT / 2;
+    this.text(this.t("paused"), 56, C.accent, WIDTH / 2, cy - 46, "center", true);
+    this.text(this.t("paused_hint"), 20, C.grey, WIDTH / 2, cy + 8);
+    this.button({ x: WIDTH / 2 - 95, y: cy + 42, w: 190, h: 50, label: this.t("resume"), action: "toggle_pause" });
   },
 
   // -- Primitives -------------------------------------------------------
@@ -441,8 +482,23 @@ export const RenderMixin = {
       const [ox, oy] = o.split(",").map(Number);
       this.cellRect(ox, oy, C.obstacle, 1, 4);
     }
-    if (this.food) this.cellRect(this.food[0], this.food[1], C.food, 5, 8);
+    if (this.food) this.drawFood(this.food[0], this.food[1]);
     for (const s of this.snakes) this.drawSnake(s);
+  },
+
+  // A gently pulsing apple — purely cosmetic, driven by the render clock so it
+  // never affects game state or replay determinism.
+  drawFood(fx, fy) {
+    const ctx = this.ctx;
+    const pulse = 0.5 + 0.5 * Math.sin((this.animMs || 0) / 260);
+    const inset = 4 + pulse * 2.5;       // 4..6.5px breathing inset
+    const cxp = fx * CELL + CELL / 2;
+    const cyp = PLAY_TOP + fy * CELL + CELL / 2;
+    ctx.save();
+    ctx.shadowColor = C.food;
+    ctx.shadowBlur = 6 + pulse * 8;
+    this.cellRect(fx, fy, C.food, inset, 8);
+    ctx.restore();
   },
 
   drawSnake(s) {
@@ -464,6 +520,7 @@ export const RenderMixin = {
     ctx.beginPath(); ctx.moveTo(0, HUD_HEIGHT); ctx.lineTo(WIDTH, HUD_HEIGHT); ctx.stroke();
     this.text(this.t(MODE_KEYS[this.mode]), 22, C.accent, 16, 22, "left");
     if (this.replaying) this.text(this.t("replay_label"), 22, C.gold, WIDTH - 110, 22, "left");
+    else if (this.state === STATE_PLAY || this.paused) this.drawPauseButton();
 
     if (FILL_MODES.has(this.mode)) {
       const filled = this.snakes.reduce((a, s) => a + s.body.length, 0);
