@@ -681,6 +681,10 @@ class SnakeGame(RenderMixin):
             return
         if action == "start_tutorial":
             self.start_tutorial(); return
+        if action == "begin":
+            if self.state == STATE_READY:
+                self.state = STATE_PLAY
+            return
         if action == "toggle_pause":
             self._toggle_pause(); return
         if action == "start_mode":

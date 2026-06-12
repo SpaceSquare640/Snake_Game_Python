@@ -10,6 +10,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## English
 
+### [1.5.3] — 2026-06-12
+
+#### Fixed
+- **Start button on the ready screen** — every mode now begins with a tappable
+  **Start Game** button. Previously the watch-only AI modes (which have no
+  on-screen D-pad) couldn't be started on touch devices, since there was no
+  SPACE key and nothing to tap. SPACE still works on desktop.
+
 ### [1.5.2] — 2026-06-12
 
 #### Changed (browser edition)
@@ -170,6 +178,13 @@ First public release.
 
 ## 繁體中文
 
+### [1.5.3] — 2026-06-12
+
+#### 修正
+- **準備畫面新增開始按鈕** — 每種模式現在都以可點選的 **開始遊戲** 按鈕開場。先前
+  純觀看的 AI 模式（沒有畫面方向鍵）在觸控裝置上無法開始，因為既沒有空白鍵也沒有可點
+  的按鈕。桌面版的空白鍵仍然有效。
+
 ### [1.5.2] — 2026-06-12
 
 #### 變更（瀏覽器版）
@@ -302,6 +317,13 @@ First public release.
 ---
 
 ## 简体中文
+
+### [1.5.3] — 2026-06-12
+
+#### 修正
+- **准备画面新增开始按钮** — 每种模式现在都以可点选的 **开始游戏** 按钮开场。先前
+  纯观看的 AI 模式（没有画面方向键）在触控设备上无法开始，因为既没有空格键也没有可点
+  的按钮。桌面版的空格键仍然有效。
 
 ### [1.5.2] — 2026-06-12
 

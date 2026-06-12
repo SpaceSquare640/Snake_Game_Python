@@ -48,7 +48,7 @@ class RenderMixin:
             self._draw_hud()
             self._draw_control_bar()
             if self.state == STATE_READY:
-                self._draw_center_banner(self.t("press_space"))
+                self._draw_ready_screen()
             elif self.state == STATE_OVER:
                 self._draw_game_over()
         if self.paused and self.state in (STATE_PLAY, STATE_TUTORIAL):
@@ -626,6 +626,17 @@ class RenderMixin:
         overlay.fill((0, 0, 0, 150))
         self.screen.blit(overlay, (0, PLAY_TOP))
         self._text(text, "mid", theme.WHITE, center=(WIDTH // 2, PLAY_TOP + PLAY_HEIGHT // 2))
+
+    def _draw_ready_screen(self):
+        # A clickable Start button so every mode (including the watch-only AI
+        # showcases, which have no D-pad) can begin on touch / mouse alone.
+        overlay = pygame.Surface((WIDTH, PLAY_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 158))
+        self.screen.blit(overlay, (0, PLAY_TOP))
+        cy = PLAY_TOP + PLAY_HEIGHT // 2
+        self._button(pygame.Rect(WIDTH // 2 - 120, cy - 34, 240, 64),
+                     self.t("start_btn"), "begin", font="mid")
+        self._text(self.t("ready_hint"), "tiny", theme.DIM, center=(WIDTH // 2, cy + 56))
 
     def _draw_game_over(self):
         overlay = pygame.Surface((WIDTH, PLAY_HEIGHT), pygame.SRCALPHA)
