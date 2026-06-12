@@ -58,7 +58,7 @@ export const RenderMixin = {
         this.drawPlayArea();
         this.drawHud();
         this.drawControlBar();
-        if (this.state === STATE_READY) this.drawCenterBanner(this.t("press_space"));
+        if (this.state === STATE_READY) this.drawReadyScreen();
         else if (this.state === STATE_OVER) this.drawGameOver();
     }
     if (this.paused && (this.state === STATE_PLAY || this.state === STATE_TUTORIAL)) {
@@ -626,6 +626,18 @@ export const RenderMixin = {
     ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.fillRect(0, PLAY_TOP, WIDTH, PLAY_HEIGHT);
     this.text(str, 32, C.white, WIDTH / 2, PLAY_TOP + PLAY_HEIGHT / 2);
+  },
+
+  // A tappable Start button so every mode can begin on touch devices — the
+  // AI showcases have no on-screen D-pad, so a phone has no other way in.
+  drawReadyScreen() {
+    const ctx = this.ctx;
+    ctx.fillStyle = "rgba(0,0,0,0.62)";
+    ctx.fillRect(0, PLAY_TOP, WIDTH, PLAY_HEIGHT);
+    const cy = PLAY_TOP + PLAY_HEIGHT / 2;
+    this.button({ x: WIDTH / 2 - 120, y: cy - 34, w: 240, h: 64,
+      label: this.t("start_btn"), action: "begin", font: 26 });
+    this.text(this.t("ready_hint"), 16, C.dim, WIDTH / 2, cy + 56);
   },
 
   drawGameOver() {

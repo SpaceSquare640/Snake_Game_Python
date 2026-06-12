@@ -622,6 +622,7 @@ export class Game {
         if (arg >= 0 && arg < this.profile.replays.length) this.startReplay(this.profile.replays[arg]);
         break;
       case "start_tutorial": this.startTutorial(); break;
+      case "begin": if (this.state === STATE_READY) this.state = STATE_PLAY; break;
       case "toggle_pause": this.togglePause(); break;
       case "back_menu": this.state = STATE_MENU; break;
       case "sub_back": this.state = this.subReturn; break;
